@@ -50,6 +50,12 @@
       serial_extracting: 'در حال استخراج لینک‌های تمام قسمت‌ها...',
       serial_season_label: 'فصل:',
       serial_quality_label: 'کیفیت ویدیو:',
+      serial_audio_label: 'صوت / نسخه:',
+      serial_audio_all: 'همه نسخه‌ها',
+      serial_audio_dubbed: '🎙️ فقط دوبله فارسی',
+      serial_audio_original: '🔊 فقط زبان اصلی',
+      badge_dubbed: '🎙️ دوبله',
+      badge_original: '🔊 زبان اصلی',
       serial_filter_dubbed: 'صوت دوبله',
       serial_filter_sub: 'زیرنویس‌ها (.srt)',
       serial_filter_sub_fa: 'زیرنویس فارسی (FA)',
@@ -91,6 +97,12 @@
       serial_extracting: 'Extracting all episode download links...',
       serial_season_label: 'Season:',
       serial_quality_label: 'Video Quality:',
+      serial_audio_label: 'Audio / Version:',
+      serial_audio_all: 'All Versions',
+      serial_audio_dubbed: '🎙️ Persian Dubbed Only',
+      serial_audio_original: '🔊 Original Audio Only',
+      badge_dubbed: '🎙️ Dubbed',
+      badge_original: '🔊 Original',
       serial_filter_dubbed: 'Dubbed Audio',
       serial_filter_sub: 'Subtitles (.srt)',
       serial_filter_sub_fa: 'Persian Subtitles (FA)',
@@ -549,6 +561,25 @@
         qualityOptionsHtml += `<option value="${q}">${t.serial_quality_p(q)}</option>`;
       });
 
+      // Check audio version availability (Dubbed vs Original)
+      const hasDubbedVideos = filterOptions.allItems && filterOptions.allItems.some((it) => !it.isSub && it.isDubbed);
+      const hasOriginalVideos = filterOptions.allItems && filterOptions.allItems.some((it) => !it.isSub && !it.isDubbed);
+      const hasAudioChoice = hasDubbedVideos && hasOriginalVideos;
+
+      let audioOptionsHtml = '';
+      if (hasAudioChoice) {
+        audioOptionsHtml = `
+          <div class="idm-filter-group">
+            <label class="idm-filter-label">${t.serial_audio_label}</label>
+            <select id="idm-filter-audio" class="idm-filter-select">
+              <option value="all">${t.serial_audio_all}</option>
+              <option value="dubbed">${t.serial_audio_dubbed}</option>
+              <option value="original">${t.serial_audio_original}</option>
+            </select>
+          </div>
+        `;
+      }
+
       const hasSubs = filterOptions.allItems && filterOptions.allItems.some((it) => it.isSub);
       const hasFaSubs = filterOptions.allItems && filterOptions.allItems.some((it) => it.isSub && it.subLang === 'fa');
       const hasEnSubs = filterOptions.allItems && filterOptions.allItems.some((it) => it.isSub && it.subLang === 'en');
@@ -620,6 +651,7 @@
               ${qualityOptionsHtml}
             </select>
           </div>
+          ${audioOptionsHtml}
           ${subCheckboxHtml}
         </div>
       `;
@@ -630,17 +662,25 @@
         return `<div class="idm-batch-empty">${t.serial_no_episodes}</div>`;
       }
       return list.map((item, index) => {
-        let badgeClass = 'idm-badge-video';
+        let tagsHtml = '';
         if (item.isSub) {
-          badgeClass = item.subLang === 'en' ? 'idm-badge-sub-en' : 'idm-badge-sub-fa';
+          const badgeClass = item.subLang === 'en' ? 'idm-badge-sub-en' : 'idm-badge-sub-fa';
+          tagsHtml = `<span class="idm-item-badge ${badgeClass}">${item.badge || 'SRT'}</span>`;
+        } else {
+          const qLabel = item.quality ? (item.quality === 2160 ? '4K' : `${item.quality}p`) : 'Video';
+          tagsHtml += `<span class="idm-item-badge idm-badge-video">${qLabel}</span>`;
+          if (item.isDubbed) {
+            tagsHtml += `<span class="idm-item-badge idm-badge-dubbed">${t.badge_dubbed}</span>`;
+          } else {
+            tagsHtml += `<span class="idm-item-badge idm-badge-original">${t.badge_original}</span>`;
+          }
         }
-        const tag = item.badge ? `<span class="idm-item-badge ${badgeClass}">${item.badge}</span>` : '';
         const fnAttr = item.filename ? `data-filename="${encodeURIComponent(item.filename)}"` : '';
         return `
           <div class="idm-batch-item" data-index="${index}">
             <input type="checkbox" id="idm-check-${index}" class="idm-item-checkbox" checked data-url="${encodeURIComponent(item.url)}" ${fnAttr} />
             <label for="idm-check-${index}" class="idm-item-content">
-              <span class="idm-item-title">${item.title} ${tag}</span>
+              <span class="idm-item-title">${item.title} ${tagsHtml}</span>
               <span class="idm-item-url" title="${item.url}">${item.url}</span>
             </label>
           </div>
@@ -759,6 +799,7 @@
     if (filterOptions && filterOptions.allItems) {
       const seasonSelect = overlay.querySelector('#idm-filter-season');
       const qualitySelect = overlay.querySelector('#idm-filter-quality');
+      const audioSelect = overlay.querySelector('#idm-filter-audio');
       const subFaCheck = overlay.querySelector('#idm-filter-sub-fa');
       const subEnCheck = overlay.querySelector('#idm-filter-sub-en');
       const subOtherCheck = overlay.querySelector('#idm-filter-sub-other');
@@ -766,6 +807,7 @@
       const applyFilters = () => {
         const selSeason = seasonSelect ? seasonSelect.value : 'all';
         const selQuality = qualitySelect ? qualitySelect.value : 'all';
+        const selAudio = audioSelect ? audioSelect.value : 'all';
         const includeSubFa = subFaCheck ? subFaCheck.checked : false;
         const includeSubEn = subEnCheck ? subEnCheck.checked : false;
         const includeSubOther = subOtherCheck ? subOtherCheck.checked : false;
@@ -780,6 +822,12 @@
             return includeSubOther;
           }
           if (selQuality !== 'all' && String(item.quality) !== String(selQuality)) {
+            return false;
+          }
+          if (selAudio === 'dubbed' && !item.isDubbed) {
+            return false;
+          }
+          if (selAudio === 'original' && item.isDubbed) {
             return false;
           }
           return true;
@@ -797,6 +845,7 @@
 
       if (seasonSelect) seasonSelect.addEventListener('change', applyFilters);
       if (qualitySelect) qualitySelect.addEventListener('change', applyFilters);
+      if (audioSelect) audioSelect.addEventListener('change', applyFilters);
       if (subFaCheck) subFaCheck.addEventListener('change', applyFilters);
       if (subEnCheck) subEnCheck.addEventListener('change', applyFilters);
       if (subOtherCheck) subOtherCheck.addEventListener('change', applyFilters);
