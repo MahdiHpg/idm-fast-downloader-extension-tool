@@ -159,6 +159,69 @@ namespace IdmNativeBridge
             return list;
         }
 
+        class BatchItem
+        {
+            public string Url { get; set; }
+            public string Filename { get; set; }
+        }
+
+        static List<BatchItem> ExtractBatchItems(string json)
+        {
+            var list = new List<BatchItem>();
+            try
+            {
+                // 1. Try to extract structured "items": [ { "url": "...", "filename": "..." } ]
+                var itemsMatch = Regex.Match(json, "\"items\"\\s*:\\s*\\[([^\\]]*)\\]", RegexOptions.Singleline);
+                if (itemsMatch.Success)
+                {
+                    var content = itemsMatch.Groups[1].Value;
+                    var objMatches = Regex.Matches(content, "\\{([^\\}]*)\\}");
+                    foreach (Match om in objMatches)
+                    {
+                        string objStr = om.Groups[1].Value;
+                        string u = ExtractJsonValue(objStr, "url");
+                        string f = ExtractJsonValue(objStr, "filename");
+                        if (!string.IsNullOrEmpty(u))
+                        {
+                            list.Add(new BatchItem { Url = u, Filename = f });
+                        }
+                    }
+                }
+
+                // 2. Fallback to simple "urls": [ "..." ]
+                if (list.Count == 0)
+                {
+                    var simpleUrls = ExtractJsonArray(json, "urls");
+                    foreach (var u in simpleUrls)
+                    {
+                        if (!string.IsNullOrEmpty(u))
+                        {
+                            list.Add(new BatchItem { Url = u, Filename = null });
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        static string SanitizeFilename(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            // Remove invalid file path characters and quotes
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            StringBuilder sb = new StringBuilder();
+            foreach (char c in name)
+            {
+                if (Array.IndexOf(invalidChars, c) < 0 && c != '"' && c != '\'' && c != ';' && c != '&' && c != '|')
+                {
+                    sb.Append(c);
+                }
+            }
+            string cleaned = sb.ToString().Trim();
+            return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+        }
+
         static string HandleMessage(string json)
         {
             string idmPath = GetIdmPath();
@@ -176,8 +239,8 @@ namespace IdmNativeBridge
             // Batch Download Support
             if (string.Equals(action, "batchDownload", StringComparison.OrdinalIgnoreCase))
             {
-                var urls = ExtractJsonArray(json, "urls");
-                if (urls.Count == 0)
+                var items = ExtractBatchItems(json);
+                if (items.Count == 0)
                 {
                     return "{\"status\":\"error\",\"message\":\"No URLs provided in batch list\"}";
                 }
@@ -186,13 +249,27 @@ namespace IdmNativeBridge
 
                 try
                 {
-                    foreach (var u in urls)
+                    foreach (var item in items)
                     {
-                        if (string.IsNullOrEmpty(u)) continue;
+                        if (string.IsNullOrEmpty(item.Url)) continue;
+
+                        StringBuilder args = new StringBuilder();
+                        args.Append("/d \"").Append(item.Url).Append("\"");
+
+                        string safeFn = SanitizeFilename(item.Filename);
+                        if (!string.IsNullOrEmpty(safeFn))
+                        {
+                            args.Append(" /f \"").Append(safeFn).Append("\"");
+                        }
+
+                        if (toQueue)
+                        {
+                            args.Append(" /a");
+                        }
 
                         ProcessStartInfo psi = new ProcessStartInfo();
                         psi.FileName = idmPath;
-                        psi.Arguments = toQueue ? ("/d \"" + u + "\" /a") : ("/d \"" + u + "\"");
+                        psi.Arguments = args.ToString();
                         psi.UseShellExecute = true;
                         Process.Start(psi);
                         System.Threading.Thread.Sleep(70);
@@ -207,7 +284,7 @@ namespace IdmNativeBridge
                         Process.Start(showPsi);
                     }
 
-                    return "{\"status\":\"ok\",\"action\":\"batchDownload\",\"count\":" + urls.Count + "}";
+                    return "{\"status\":\"ok\",\"action\":\"batchDownload\",\"count\":" + items.Count + "}";
                 }
                 catch (Exception ex)
                 {

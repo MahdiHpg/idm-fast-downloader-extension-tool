@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.3-emerald?style=flat-square" alt="Version 1.3.3">
+  <img src="https://img.shields.io/badge/version-1.4.0-emerald?style=flat-square" alt="Version 1.4.0">
   <img src="https://img.shields.io/badge/Manifest-V3-blue?style=flat-square" alt="Manifest V3">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Platform Windows">
   <img src="https://img.shields.io/badge/Languages-Persian%20%7C%20English-purple?style=flat-square" alt="Bilingual">
@@ -46,7 +46,7 @@
 اگر شما هم اهل دانلود فایل و بازی‌های چند پارته با اینترنت دانلود منیجر باشید، حتماً می‌دونید چقدر این قضیه کلافه‌کننده‌ست:
 با هر بار آپدیت شدن خود نرم‌افزار IDM، افزونه رسمی مرورگرش اغلب دچار مشکل می‌شد یا از کار می‌افتاد؛ آپدیت‌های اکستنشن رسمی هم در استور مرورگرها خیلی دیر به دیر منتشر می‌شدند. روی مرورگرهایی مثل Brave یا نسخه‌های جدید کرومیوم هم که داستان‌های خودش رو داشت! از طرفی موقع دانلود پارت‌های مختلف، باید تک‌تک لینک‌ها رو دستی کپی می‌کردیم یا با باز شدن تب‌های تکراری سر و کله می‌زدیم.
 
-همین موضوع باعث شد دست به کار بشم و ساعت‌ها وقت بذارم، سناریوهای مختلف رو با دقت تست کنم تا یک افزونه اختصاصی، مدرن و کاملاً مستقل خلق کنم؛ ابزاری که بدون وابستگی به باگ‌های افزونه رسمی، با یک کلیک لینک‌ها رو به IDM می‌فرسته و حتی قابلیت شناسایی هوشمند سلکت چند پارت، کپی یکجا و خروجی `.txt` رو هم داره.
+همین موضوع باعث شد دست به کار بشم و ساعت‌ها وقت بذارم، سناریوهای مختلف رو با دقت تست کنم تا یک افزونه اختصاصی، مدرن و کاملاً مستقل خلق کنم؛ ابزاری که بدون وابستگی به باگ‌های افزونه رسمی، با یک کلیک لینک‌ها رو به IDM می‌فرسته و حتی قابلیت شناسایی هوشمند سلکت چند پارت، کپی یکجا، خروجی `.txt` و استخراج دسته‌ای سریال‌ها رو هم داره.
 
 > 💡 **همراهی هوش مصنوعی:** در طول مسیر توسعه و ساخت این افزونه، با همکاری و هدایت مستقیم هوش مصنوعی **Gemini 3.8 Flash Medium**، کدهای بک‌اند C# و رابط کاربری فرانت بهینه‌سازی، ریفکتور و نهایی‌سازی شدند تا یک پروژه تمیز، بدون باگ و آماده انتشار به دست شما برسه.
 
@@ -55,6 +55,10 @@
 ### ✨ ویژگی‌های کلیدی
 
 - **⚡ رهگیری فوری کلیک (Click Interception):** با کلیک چپ روی هر فایل، مرورگر بدون معطلی دیالوگ تایید و ذخیره رسمی IDM رو باز می‌کنه.
+- **🎬 استخراج هوشمند قسمت‌های سریال و فیلم (Serial & VOD Batch Extractor):** در پلتفرم‌های استریم و سایت‌های مرجع دانلود فیلم و سریال که لینک‌های متعدد قسمت‌ها در صفحه قرار دارند یا انتخاب متن مسدود شده، یک دکمه شناور هوشمند در صفحه ظاهر می‌شه که با یک کلیک:
+  - تمام فصل‌ها، قسمت‌ها و کیفیت‌ها (4K, 1080p, 720p, 480p, 360p) رو یکجا استخراج و دسته‌بندی می‌کنه.
+  - فایل‌های زیرنویس هماهنگ (`.srt`) رو به همراه نام دقیق هر قسمت و زبان مرتب می‌کنه.
+  - نام فایل‌ها رو با سوییچ رسمی `/f` مستقیماً با نام شفاف در صف دانلود IDM تنظیم می‌کنه تا اسم‌ها به صورت موقت یا به‌هم‌ریخته ذخیره نشوند.
 - **📥 دانلود هوشمند دسته‌ای (Batch Floating Bar):** با ماوس چند خط یا جدول پارت‌های دانلود (مثلاً پارت ۱ تا ۱۰) رو هایلایت/سلکت کنید؛ یک نوار ابزار شیک و کاربردی ظاهر می‌شه:
   - 📥 **دانلود با IDM:** همه لینک‌ها به مدال اختصاصی می‌روند تا با یک کلیک به صف دانلود اضافه بشن.
   - 📋 **کپی لینک‌ها:** تمام لینک‌های استخراج‌شده از سلکت رو در کلیپ‌بورد کپی می‌کنه.
@@ -77,7 +81,7 @@ idm-fast-downloader/
 │   ├── background.js                # سرویس ورکر پس‌زمینه و رهگیری هوشمند
 │   ├── content.js                   # اسکریپت رهگیری کلیک‌ها و پنل شناور سلکت
 │   ├── content.css                  # استایل نوتیفیکیشن‌ها و مدال دانلود دسته‌ای
-│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.3.3)
+│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.4.0)
 ├── native-host/                     # پل ارتباطی بومی ویندوز
 │   ├── IdmBridge.cs                 # سورس C# پل ارتباطی بر بستر استاندارد Stdio
 │   ├── com.idm.nativehost.chrome.json
@@ -148,6 +152,10 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 ### ✨ Key Features
 
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
+- **🎬 Smart Serial & Episode Batch Extractor (VOD & Media Portals):** On streaming platforms and serial download portals with numerous episodes or where manual selection is restricted, an intelligent sticky floating button appears to effortlessly:
+  - Extract all seasons, episodes, and qualities (4K, 1080p, 720p, 480p, 360p) with one click.
+  - Automatically pair and name synchronized subtitles (`.srt`) per episode.
+  - Send custom filenames directly via IDM's `/f` command-line switch so all video files and subtitles land neatly categorized in IDM's download queue.
 - **📥 Intelligent Batch Floating Toolbar:** Highlight/select any text or table rows containing download links (e.g. multi-part archives) to reveal a smart floating bar:
   - 📥 **Download with IDM:** Opens an interactive batch checklist dialog to send all selected items directly to IDM's queue.
   - 📋 **Copy Links:** Copies all extracted downloadable URLs straight to your clipboard.

@@ -56,7 +56,7 @@ chrome.runtime.onInstalled.addListener(async () => {
       });
     });
   } catch (err) {
-    console.error('Error during onInstalled:', err);
+    console.debug('onInstalled:', err);
   }
 });
 
@@ -87,7 +87,7 @@ const sendToIDM = async (url, referer = '') => {
         { action: 'download', url: url.trim(), referer: referer || '' },
         (response) => {
           if (chrome.runtime.lastError) {
-            console.warn('Native messaging error:', chrome.runtime.lastError.message);
+            console.debug('Native messaging note:', chrome.runtime.lastError.message);
             resolve({
               success: false,
               error: chrome.runtime.lastError.message || 'پل ارتباطی IDM نصب نیست یا پاسخ نمی‌دهد'
@@ -200,8 +200,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       if (message.action === 'batchDownloadWithIDM') {
+        const items = message.items;
         const urls = message.urls;
-        if (!Array.isArray(urls) || urls.length === 0) {
+
+        const payload = {
+          action: 'batchDownload',
+          toQueue: true
+        };
+
+        let count = 0;
+        if (Array.isArray(items) && items.length > 0) {
+          payload.items = items;
+          count = items.length;
+        } else if (Array.isArray(urls) && urls.length > 0) {
+          payload.urls = urls;
+          count = urls.length;
+        } else {
           sendResponse({ success: false, error: 'هیچ لینکی ارسال نشد' });
           return;
         }
@@ -210,14 +224,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           try {
             chrome.runtime.sendNativeMessage(
               NATIVE_HOST_NAME,
-              { action: 'batchDownload', urls, toQueue: true },
+              payload,
               (response) => {
                 if (chrome.runtime.lastError) {
                   resolve({ success: false, error: chrome.runtime.lastError.message });
                   return;
                 }
                 if (response && response.status === 'ok') {
-                  resolve({ success: true, count: urls.length });
+                  resolve({ success: true, count });
                 } else {
                   resolve({ success: false, error: response?.message || 'خطا در ارسال دسته‌ای به IDM' });
                 }
@@ -274,7 +288,7 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
         await chrome.downloads.cancel(downloadItem.id);
         await chrome.downloads.erase({ id: downloadItem.id });
       } catch (cancelErr) {
-        console.warn('Could not cancel browser download:', cancelErr);
+        console.debug('Could not cancel browser download:', cancelErr);
       }
 
       // Forward to IDM
@@ -284,6 +298,6 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
       }
     }
   } catch (err) {
-    console.error('Error in downloads.onCreated listener:', err);
+    console.debug('downloads.onCreated listener:', err);
   }
 });

@@ -424,3 +424,202 @@
     opacity: 1;
   }
 }
+
+/* -------------------------------------------------------------
+ * Smart Serial & VOD Batch Sticky Button & Filters
+ * ------------------------------------------------------------- */
+#idm-media-sticky-btn,
+#idm-serial-sticky-btn {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  z-index: 2147483645;
+  cursor: pointer;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Vazirmatn", "Tahoma", sans-serif;
+  animation: idm-slide-up-bounce 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[dir="ltr"] #idm-media-sticky-btn,
+[dir="ltr"] #idm-serial-sticky-btn {
+  left: auto;
+  right: 30px;
+}
+
+.idm-serial-sticky-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  color: #ffffff;
+  border-radius: 30px;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.5), 0 6px 12px -3px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#idm-media-sticky-btn:hover .idm-serial-sticky-inner,
+#idm-serial-sticky-btn:hover .idm-serial-sticky-inner {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 14px 30px -4px rgba(16, 185, 129, 0.65), 0 8px 16px -3px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+}
+
+#idm-media-sticky-btn:active .idm-serial-sticky-inner,
+#idm-serial-sticky-btn:active .idm-serial-sticky-inner {
+  transform: translateY(0) scale(0.97);
+}
+
+.idm-serial-icon {
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+}
+
+.idm-serial-loading .idm-serial-sticky-inner {
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%) !important;
+  box-shadow: 0 10px 25px -4px rgba(99, 102, 241, 0.5) !important;
+  pointer-events: none;
+}
+
+.idm-serial-loading .idm-serial-icon {
+  animation: idm-spin 1s infinite linear;
+}
+
+@keyframes idm-slide-up-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes idm-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Modal Filters Toolbar */
+.idm-modal-filters {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.idm-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.idm-filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.idm-filter-select {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.idm-filter-select:hover,
+.idm-filter-select:focus {
+  border-color: #10b981;
+  background: #273549;
+}
+
+.idm-filter-checkboxes {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-right: auto;
+}
+
+[dir="ltr"] .idm-filter-checkboxes {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+.idm-filter-check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.idm-filter-check-item input[type="checkbox"] {
+  accent-color: #10b981;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Badges for Serial Items (Quality and Subtitle) */
+.idm-item-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+[dir="ltr"] .idm-item-badge {
+  margin-right: 0;
+  margin-left: 6px;
+}
+
+.idm-badge-video {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.idm-badge-sub,
+.idm-badge-sub-fa {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.idm-badge-sub-en {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.idm-batch-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 500;
+}
+
