@@ -1071,7 +1071,9 @@
       }
 
       // Dubbed detection
-      const isDubbed = /dubbed|دوبله/i.test(filename) || /dubbed|دوبله/i.test(fullUrl);
+      const checkStr = [filename, fullUrl, a.textContent, a.title].filter(Boolean).join(' ');
+      const isDubbedRegex = /(?:^|[^a-zA-Z0-9])(?:dub|dubbed|duble|dooble|farsi[._-]?dub|fa[._-]?dub|persian[._-]?dub)(?:$|[^a-zA-Z0-9])|دوبله/i;
+      const isDubbed = isDubbedRegex.test(checkStr);
 
       // Subtitle language detection
       let subLang = null;
@@ -1295,9 +1297,15 @@
                       fileName = parsed.searchParams.get('name') || '';
                     } catch {}
 
+                    // Dubbed detection: check API flag att.IsDubbed, or check filename, url, and titles
+                    const checkStr = [fileName, f.Path, att.Title, epTitle].filter(Boolean).join(' ');
+                    const isDubbedRegex = /(?:^|[^a-zA-Z0-9])(?:dub|dubbed|duble|dooble|farsi[._-]?dub|fa[._-]?dub|persian[._-]?dub)(?:$|[^a-zA-Z0-9])|دوبله/i;
+                    const isDubbed = Boolean(att.IsDubbed) || isDubbedRegex.test(checkStr);
+
                     if (!fileName) {
                       const prefix = seriesEnglishTitle || 'Episode';
-                      fileName = `${prefix}-S${sPad}E${ePad}_${quality}.mp4`;
+                      const dubTag = isDubbed ? '-DUB' : '';
+                      fileName = `${prefix}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
                     }
 
                     allItems.push({
@@ -1308,6 +1316,7 @@
                       episodeNum: epNum,
                       quality: quality,
                       badge: `${quality}p`,
+                      isDubbed: isDubbed,
                       isSub: false
                     });
                   }
@@ -1351,9 +1360,13 @@
           return;
         }
 
+        const qualities = Array.from(new Set(allItems.map((it) => it.quality).filter((q) => q > 0)))
+          .sort((a, b) => b - a);
+
         openBatchModal(allItems, {
           allItems: allItems,
           seasons: seasons,
+          qualities: qualities,
           episodeCount: totalEpisodes
         });
       } catch (err) {
