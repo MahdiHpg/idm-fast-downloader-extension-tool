@@ -37,6 +37,8 @@
 
 ---
 
+<div dir="rtl">
+
 # 🇮🇷 فارسی (Persian)
 
 سلام رفقا! 👋
@@ -124,7 +126,11 @@ idm-fast-downloader/
    - با کلیک روی **📄 خروجی متنی** فایل متنی آماده تحویل داده می‌شه.
 3. **تغییر زبان:** وارد پاپ‌آپ افزونه بشید و از گوشه بالا سمت چپ بین **FA** و **EN** جابجا شید.
 
+</div>
+
 ---
+
+<div dir="ltr">
 
 # 🇬🇧 English
 
@@ -173,7 +179,11 @@ Because browsers cannot launch Windows executables directly due to sandbox secur
   2. Click **Load Temporary Add-on**.
   3. Select the `manifest.json` file inside the `extension` folder.
 
+</div>
+
 ---
+
+<div dir="rtl">
 
 ## 👨‍💻 توسعه‌دهنده و سازنده | Author
 
@@ -189,3 +199,5 @@ Because browsers cannot launch Windows executables directly due to sandbox secur
 ## 📜 لایسنس | License
 
 این پروژه تحت مجوز [MIT License](LICENSE) منتشر شده است. استفاده، ویرایش و توسعه مجدد آن برای همگان آزاد است.
+
+</div>
