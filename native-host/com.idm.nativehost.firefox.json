@@ -1,0 +1,9 @@
+﻿{
+    "path":  "H:\\MyWork\\Projects\\idm-fast-downloader\\native-host\\idm_bridge.exe",
+    "description":  "IDM Fast Downloader Bridge for Mozilla Firefox",
+    "name":  "com.idm.nativehost",
+    "allowed_extensions":  [
+                               "idm-fast-downloader@mahdi-hp.ir"
+                           ],
+    "type":  "stdio"
+}

@@ -1,0 +1,9 @@
+﻿{
+    "path":  "H:\\MyWork\\Projects\\idm-fast-downloader\\native-host\\idm_bridge.exe",
+    "description":  "IDM Fast Downloader Bridge for Chromium Browsers",
+    "name":  "com.idm.nativehost",
+    "allowed_origins":  [
+                            "chrome-extension://opkdbjkgacccphgpjdhobgmcclmccnib/"
+                        ],
+    "type":  "stdio"
+}

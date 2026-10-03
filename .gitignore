@@ -1,0 +1,22 @@
+# Windows build and binary outputs
+native-host/idm_bridge.exe
+*.exe
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Logs and temp files
+*.log
+*.tmp

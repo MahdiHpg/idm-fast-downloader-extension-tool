@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDM Fast Downloader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Top Author Header -->
+    <div class="author-banner">
+      <span class="author-text" data-i18n="author_made_with">ساخته شده با ❤️ - </span>
+      <a href="https://mahdi-hp.ir/" target="_blank" rel="noopener noreferrer" class="author-link" data-i18n="author_name">مهدی حیدرپور</a>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <img src="../icons/icon-48.png" alt="IDM Logo" class="app-icon">
+        <div class="title-wrap">
+          <h1 id="appTitle" data-i18n="app_title">دانلود با IDM</h1>
+          <span class="badge-version">v1.3.0</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="lang-switch-wrap">
+          <button type="button" class="lang-btn active" id="btnLangFa" data-lang="fa">FA</button>
+          <span class="lang-divider">|</span>
+          <button type="button" class="lang-btn" id="btnLangEn" data-lang="en">EN</button>
+        </div>
+        <div class="header-status" id="connectionBadge">
+          <span class="status-dot"></span>
+          <span class="status-label" id="statusText" data-i18n="status_checking">بررسی اتصال...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Alert / IDM Path Info -->
+    <div class="alert-box" id="idmInfoBox">
+      <div class="alert-icon">⚡</div>
+      <div class="alert-content">
+        <div class="alert-title" id="alertTitle" data-i18n="alert_checking_title">درحال بررسی وضعیت IDM</div>
+        <div class="alert-desc" id="alertDesc" data-i18n="alert_checking_desc">لطفاً چند لحظه صبر کنید...</div>
+      </div>
+      <button class="btn-icon" id="btnRefresh" title="بررسی مجدد اتصال" data-i18n-title="refresh_btn_title">🔄</button>
+    </div>
+
+    <!-- Quick Download Box -->
+    <div class="card quick-download-card">
+      <div class="card-header">
+        <span class="card-icon">🚀</span>
+        <span class="card-title" data-i18n="quick_download_title">دانلود سریع لینک</span>
+      </div>
+      <div class="input-group">
+        <input type="url" id="quickUrlInput" placeholder="لینک دانلود را اینجا وارد کنید..." dir="ltr" data-i18n-placeholder="quick_input_placeholder">
+        <button id="btnQuickDownload" class="btn-primary" data-i18n="btn_download">دانلود</button>
+      </div>
+      <div id="quickDownloadMsg" class="form-msg"></div>
+    </div>
+
+    <!-- Main Toggles -->
+    <div class="card settings-card">
+      <div class="card-header">
+        <span class="card-icon">⚙️</span>
+        <span class="card-title" data-i18n="settings_title">تنظیمات رهگیری</span>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_enabled_title">فعال بودن افزونه</span>
+          <span class="setting-subtitle" data-i18n="setting_enabled_sub">روشن/خاموش کردن کلی عملکرد اکستنشن</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleEnabled">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_intercept_links_title">رهگیری کلیک روی لینک‌ها</span>
+          <span class="setting-subtitle" data-i18n="setting_intercept_links_sub">ارسال خودکار لینک‌های دانلود فشرده و مدیا</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleInterceptLinks">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_intercept_browser_title">رهگیری دانلودهای مرورگر</span>
+          <span class="setting-subtitle" data-i18n="setting_intercept_browser_sub">لغو دانلود پیش‌فرض مرورگر و انتقال به IDM</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleInterceptBrowser">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_toast_title">نمایش پیام شناور در صفحه</span>
+          <span class="setting-subtitle" data-i18n="setting_toast_sub">اطلاع‌رسانی هنگام انتقال لینک به IDM</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleShowToast">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item select-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_bypass_title">کلید میانبر دور زدن (Bypass)</span>
+          <span class="setting-subtitle" data-i18n="setting_bypass_sub">هنگام نگه داشتن این کلید، دانلود با مرورگر انجام می‌شود</span>
+        </div>
+        <select id="selectBypassKey" class="custom-select">
+          <option value="Alt" data-i18n="bypass_alt">کلید Alt (پیش‌فرض)</option>
+          <option value="Shift" data-i18n="bypass_shift">کلید Shift</option>
+          <option value="Ctrl" data-i18n="bypass_ctrl">کلید Ctrl</option>
+          <option value="None" data-i18n="bypass_none">غیرفعال</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- File Extensions Settings -->
+    <div class="card extensions-card">
+      <div class="card-header">
+        <span class="card-icon">📂</span>
+        <span class="card-title"><span data-i18n="exts_covered">پسوندهای تحت پوشش</span> (<span id="extCount">0</span>)</span>
+      </div>
+      <div class="ext-add-row">
+        <input type="text" id="newExtInput" placeholder="پسوند جدید (مثلاً: MKV)" dir="ltr" data-i18n-placeholder="ext_input_placeholder">
+        <button id="btnAddExt" class="btn-secondary" data-i18n="btn_add">افزودن</button>
+      </div>
+      <div class="ext-tags-container" id="extTagsContainer">
+        <!-- Generated by JS -->
+      </div>
+      <div class="ext-actions">
+        <button id="btnResetExts" class="btn-text" data-i18n="btn_reset_exts">بازنشانی به پیش‌فرض</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span data-i18n="footer_text">توسعه یافته برای هماهنگی کامل مرورگرها با IDM</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
