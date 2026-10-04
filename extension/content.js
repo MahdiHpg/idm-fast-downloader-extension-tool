@@ -76,7 +76,13 @@
       serial_modal_title: 'دانلود دسته‌ای قسمت‌های سریال و فیلم با IDM',
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} قسمت یافت شد (${linkCount} فایل آماده دانلود)`,
       serial_filter_apply: 'اعمال فیلتر',
-      modal_drag_hint: 'برای جابجایی کلیک کنید و بکشید'
+      modal_drag_hint: 'برای جابجایی کلیک کنید و بکشید',
+      toast_hls_started: (n) => `دانلود مستقیم ${n} استریم در پس‌زمینه آغاز شد (پوشه Downloads)`,
+      toast_hls_error: 'خطا در شروع دانلود استریم',
+      serial_btn_float_hls: '🎬 استخراج هوشمند قسمت‌ها (IDM)',
+      modal_btn_hls_direct: 'دانلود مستقیم استریم',
+      modal_btn_hls_sending: 'در حال شروع دانلود...',
+      hls_notice: 'ℹ️ این ویدیوها استریم چندقطعه‌ای HLS هستند. می‌توانید آن‌ها را مستقیماً دانلود کنید، به IDM بفرستید یا لینک‌ها را کپی کنید.'
     },
     en: {
       toast_transferring: 'Sending link to IDM...',
@@ -128,7 +134,13 @@
       serial_modal_title: 'Batch Download Media & Episodes with IDM',
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} episodes found (${linkCount} files ready for download)`,
       serial_filter_apply: 'Apply Filter',
-      modal_drag_hint: 'Click and drag to move'
+      modal_drag_hint: 'Click and drag to move',
+      toast_hls_started: (n) => `Direct download of ${n} streams started in Downloads folder`,
+      toast_hls_error: 'Error starting HLS stream download',
+      serial_btn_float_hls: '🎬 Batch Extract Episodes (IDM)',
+      modal_btn_hls_direct: 'Direct Stream Download',
+      modal_btn_hls_sending: 'Starting download...',
+      hls_notice: 'ℹ️ These files are multi-segment HLS streams. You can download them directly, queue them to IDM, or copy links.'
     }
   };
 
@@ -175,6 +187,9 @@
       return currentHost === clean || currentHost.endsWith('.' + clean);
     });
   };
+
+  let currentHlsActiveStream = null;
+  let triggerVideoCheck = null;
 
   // Sync settings from storage
   const syncSettings = () => {
@@ -825,6 +840,7 @@
         </div>
 
         ${filterBarHtml}
+        ${filterOptions && filterOptions.isHls ? `<div class="idm-hls-notice">${t.hls_notice}</div>` : ''}
 
         <div class="idm-modal-toolbar">
           <label class="idm-checkbox-label">
@@ -849,6 +865,11 @@
             </button>
           </div>
           <div class="idm-btn-group-left">
+            ${filterOptions && filterOptions.isHls ? `
+            <button class="idm-btn idm-btn-success" id="idm-btn-direct-hls" title="${t.modal_btn_hls_direct}">
+              <span>⚡ ${t.modal_btn_hls_direct}</span>
+            </button>
+            ` : ''}
             <button class="idm-btn idm-btn-primary" id="idm-btn-send-queue">
               <span>🚀 ${t.modal_btn_queue}</span>
             </button>
@@ -1002,6 +1023,7 @@
     const itemsContainer = overlay.querySelector('#idm-items-container');
     const countBadge = overlay.querySelector('#idm-selected-badge');
     const sendBtn = overlay.querySelector('#idm-btn-send-queue');
+    const directHlsBtn = overlay.querySelector('#idm-btn-direct-hls');
     const copyModalBtn = overlay.querySelector('#idm-btn-copy-links');
     const txtModalBtn = overlay.querySelector('#idm-btn-export-txt');
     const closeBtn = overlay.querySelector('#idm-modal-close');
@@ -1048,6 +1070,7 @@
       }
 
       sendBtn.disabled = checkedCount === 0;
+      if (directHlsBtn) directHlsBtn.disabled = checkedCount === 0;
       copyModalBtn.disabled = checkedCount === 0;
       txtModalBtn.disabled = checkedCount === 0;
       selectAllCheck.checked = itemCheckboxes.length > 0 && checkedCount === itemCheckboxes.length;
@@ -1210,6 +1233,31 @@
         }
       );
     });
+
+    if (directHlsBtn) {
+      directHlsBtn.addEventListener('click', () => {
+        const selectedItems = getCheckedItems();
+        if (selectedItems.length === 0) return;
+
+        directHlsBtn.disabled = true;
+        directHlsBtn.innerHTML = `<span>⏳ ${t.modal_btn_hls_sending}</span>`;
+
+        safeSendMessage(
+          {
+            action: 'batchDownloadHls',
+            items: selectedItems
+          },
+          (res) => {
+            closeModal();
+            if (res && res.success) {
+              showToast(t.toast_hls_started(selectedItems.length), 'success');
+            } else {
+              showToast(res?.error || t.toast_hls_error, 'error');
+            }
+          }
+        );
+      });
+    }
   };
 
   // Monitor mouseup / keyup / selection changes to display float button
@@ -1775,10 +1823,344 @@
     stickyBtn = createStickyButton(extractEpisodesFromApi, t.serial_btn_float);
   };
 
+  // 3. Specialized HLS Streaming Portal Adapter
+  // (For multi-segment HLS streaming portals with JWT content tokens and master playlists)
+  const initHlsStreamingPortalAdapter = (hostname, pathname) => {
+    const t = getT();
+    const HLS_GATEWAY_VOD = atob('aHR0cHM6Ly9nYXRld2F5LnRlbGV3ZWJpb24ubmV0L2thbmRvby92b2QvY29udGVudC8=');
+
+    const decodeJwtPayload = (token) => {
+      if (!token || typeof token !== 'string') return null;
+      try {
+        const parts = token.split('.');
+        if (parts.length >= 2) {
+          let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4) b64 += '=';
+          const jsonStr = decodeURIComponent(
+            atob(b64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          return JSON.parse(jsonStr);
+        }
+      } catch (e) {
+        try {
+          let b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4) b64 += '=';
+          return JSON.parse(atob(b64));
+        } catch {}
+      }
+      return null;
+    };
+
+    const getContentIdFromPage = () => {
+      const pathMatch = window.location.pathname.match(/(0x[a-f0-9]+)/i);
+      if (pathMatch) return pathMatch[1];
+
+      try {
+        const script = document.getElementById('__NEXT_DATA__');
+        if (script && script.textContent) {
+          const nextData = JSON.parse(script.textContent);
+          const pp = nextData?.props?.pageProps;
+          if (pp?.id) return pp.id;
+          if (pp?.alias && /^0x[a-f0-9]+$/i.test(pp.alias)) return pp.alias;
+          if (pp?.serverData?.data?.content?.[0]?.content_id) {
+            return pp.serverData.data.content[0].content_id;
+          }
+        }
+      } catch {}
+
+      return null;
+    };
+
+    const parseVariantStreams = async (masterStreamUrl) => {
+      const variants = [];
+      try {
+        const pRes = await fetch(masterStreamUrl);
+        if (!pRes.ok) throw new Error('Failed to fetch playlist');
+        const text = await pRes.text();
+        const lines = text.split('\n');
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.includes('RESOLUTION=')) {
+            const resMatch = line.match(/RESOLUTION=\d+x(\d+)/);
+            const q = resMatch ? parseInt(resMatch[1], 10) : 720;
+            const nextLine = lines[i + 1]?.trim();
+            if (nextLine && !nextLine.startsWith('#')) {
+              const fullUrl = new URL(nextLine, masterStreamUrl).href;
+              variants.push({ quality: q, url: fullUrl });
+            }
+          }
+        }
+      } catch (e) {
+        console.debug('[IDM] Note parsing variant playlist:', e);
+      }
+
+      if (variants.length === 0) {
+        variants.push({ quality: 720, url: masterStreamUrl });
+      }
+
+      return variants.sort((a, b) => b.quality - a.quality);
+    };
+
+    let stickyBtn = null;
+
+    const resolveActivePageStream = async () => {
+      const contentId = getContentIdFromPage();
+      if (!contentId) return;
+
+      try {
+        const cRes = await fetch(`${HLS_GATEWAY_VOD}get-content?content_id=${contentId}`);
+        if (!cRes.ok) return;
+        const cJson = await cRes.json();
+        const c0 = cJson.body?.content?.[0];
+        if (c0 && c0.content_token) {
+          const payload = decodeJwtPayload(c0.content_token);
+          const masterStreamUrl = payload?.content?.stream ? Object.values(payload.content.stream)[0] : null;
+          if (masterStreamUrl) {
+            const variants = await parseVariantStreams(masterStreamUrl);
+            const bestVariant = variants[0] || { url: masterStreamUrl, quality: 720 };
+            const persianTitle = c0.persian_title || 'ویدیو';
+            const englishTitle = (c0.english_title || 'Video').replace(/[^a-zA-Z0-9_\-\.]/g, '') || 'Video';
+            const epNum = c0.episode ? `_E${String(c0.episode).padStart(2, '0')}` : '';
+
+            currentHlsActiveStream = {
+              url: bestVariant.url,
+              filename: `${englishTitle}${epNum}_${bestVariant.quality}p.ts`,
+              title: `${persianTitle} (${bestVariant.quality}p)`,
+              quality: bestVariant.quality,
+              isHls: true
+            };
+
+            if (typeof triggerVideoCheck === 'function') {
+              triggerVideoCheck();
+            }
+          }
+        }
+      } catch (e) {
+        console.debug('[IDM] Error resolving active HLS stream:', e);
+      }
+    };
+
+    const extractHlsEpisodes = async () => {
+      const curT = getT();
+      const contentId = getContentIdFromPage();
+
+      if (!contentId) {
+        showToast(curT.serial_no_episodes, 'error');
+        return;
+      }
+
+      if (stickyBtn) {
+        stickyBtn.classList.add('idm-serial-loading');
+        const textElem = stickyBtn.querySelector('.idm-serial-text');
+        if (textElem) textElem.textContent = curT.serial_extracting;
+      }
+      showToast(curT.serial_extracting, 'info');
+
+      try {
+        let serialContent = null;
+        let serialParts = [];
+        let seasons = [{ id: 1, title: `${curT.serial_season_prefix} 1` }];
+
+        // Check content type or get parent serial id first
+        let targetSerialId = null;
+        try {
+          const infoRes = await fetch(`${HLS_GATEWAY_VOD}get-content?content_id=${contentId}`);
+          if (infoRes.ok) {
+            const infoJson = await infoRes.json();
+            const cInfo = infoJson.body?.content?.[0];
+            if (cInfo) {
+              if (cInfo.serial && cInfo.serial.content_id) {
+                targetSerialId = cInfo.serial.content_id;
+              } else if (cInfo.content_type === 'SERIAL') {
+                targetSerialId = cInfo.content_id;
+              } else if (cInfo.content_token) {
+                serialContent = cInfo;
+                serialParts = [cInfo];
+              }
+            }
+          }
+        } catch (e) {
+          console.debug('[IDM] get-content pre-check note:', e);
+        }
+
+        const effectiveSerialId = targetSerialId || contentId;
+
+        // If it may be a serial, query get-serial with pagination
+        if (serialParts.length === 0) {
+          try {
+            let offset = 0;
+            const pageSize = 50;
+            let keepFetching = true;
+
+            while (keepFetching && offset <= 200) {
+              const serialUrl = `${HLS_GATEWAY_VOD}get-serial?content_id=${effectiveSerialId}&season=1&first=${pageSize}&offset=${offset}`;
+              const sRes = await fetch(serialUrl);
+              if (!sRes.ok) break;
+              const sJson = await sRes.json();
+              const c0 = sJson.body?.content?.[0];
+              if (!c0 || !Array.isArray(c0.serial_parts) || c0.serial_parts.length === 0) {
+                break;
+              }
+
+              if (!serialContent) {
+                serialContent = c0;
+                if (Array.isArray(c0.seasons) && c0.seasons.length > 0) {
+                  seasons = c0.seasons.map((s) => ({
+                    id: typeof s === 'object' ? s.id || s.season : s,
+                    title: `${curT.serial_season_prefix} ${typeof s === 'object' ? s.id || s.season : s}`
+                  }));
+                }
+              }
+
+              serialParts.push(...c0.serial_parts);
+
+              if (c0.serial_parts.length < pageSize) {
+                keepFetching = false;
+              } else {
+                offset += pageSize;
+              }
+            }
+          } catch (e) {
+            console.debug('[IDM] get-serial note:', e);
+          }
+        }
+
+        // If still no parts, fallback to single content if available
+        if (serialParts.length === 0) {
+          try {
+            const contentUrl = `${HLS_GATEWAY_VOD}get-content?content_id=${contentId}`;
+            const cRes = await fetch(contentUrl);
+            if (cRes.ok) {
+              const cJson = await cRes.json();
+              const c0 = cJson.body?.content?.[0];
+              if (c0 && c0.content_token) {
+                serialContent = c0;
+                serialParts = [c0];
+              }
+            }
+          } catch (e) {
+            console.debug('[IDM] get-content fallback note:', e);
+          }
+        }
+
+        if (serialParts.length === 0 || !serialContent) {
+          if (stickyBtn) {
+            stickyBtn.classList.remove('idm-serial-loading');
+            const textElem = stickyBtn.querySelector('.idm-serial-text');
+            if (textElem) textElem.textContent = curT.serial_btn_float_hls;
+          }
+          showToast(curT.serial_no_episodes, 'error');
+          return;
+        }
+
+        const persianTitle = serialContent.persian_title || 'ویدیو';
+        const englishTitle = (serialContent.english_title || 'Video')
+          .replace(/[^a-zA-Z0-9_\-\.]/g, '') || 'Video';
+
+        // Extract variants for each episode in parallel
+        const episodeTasks = serialParts.map(async (part, index) => {
+          const epNum = part.episode || (index + 1);
+          const sNum = part.season || 1;
+          const sPad = String(sNum).padStart(2, '0');
+          const ePad = String(epNum).padStart(2, '0');
+
+          if (!part.content_token) return [];
+
+          const payload = decodeJwtPayload(part.content_token);
+          const masterStreamUrl = payload?.content?.stream ? Object.values(payload.content.stream)[0] : null;
+          if (!masterStreamUrl) return [];
+
+          const variants = await parseVariantStreams(masterStreamUrl);
+          const isSingle = serialParts.length === 1;
+
+          return variants.map((v) => ({
+            url: v.url,
+            filename: isSingle
+              ? `${englishTitle}_${v.quality}p.ts`
+              : `${englishTitle}-S${sPad}E${ePad}_${v.quality}p.ts`,
+            title: isSingle
+              ? `${persianTitle} (${v.quality}p)`
+              : `${persianTitle} - فصل ${sNum} قسمت ${epNum} (${v.quality}p)`,
+            seasonId: sNum,
+            episodeNum: epNum,
+            quality: v.quality,
+            badge: `${v.quality}p`,
+            isHls: true,
+            isSub: false
+          }));
+        });
+
+        const nestedItems = await Promise.all(episodeTasks);
+        const allItems = nestedItems.flat();
+
+        if (stickyBtn) {
+          stickyBtn.classList.remove('idm-serial-loading');
+          const textElem = stickyBtn.querySelector('.idm-serial-text');
+          if (textElem) textElem.textContent = curT.serial_btn_float_hls;
+        }
+
+        if (allItems.length === 0) {
+          showToast(curT.serial_no_episodes, 'error');
+          return;
+        }
+
+        const qualities = Array.from(new Set(allItems.map((it) => it.quality).filter((q) => q > 0)))
+          .sort((a, b) => b - a);
+
+        openBatchModal(allItems, {
+          allItems: allItems,
+          seasons: seasons,
+          qualities: qualities,
+          episodeCount: serialParts.length,
+          isHls: true
+        });
+      } catch (err) {
+        if (stickyBtn) {
+          stickyBtn.classList.remove('idm-serial-loading');
+          const textElem = stickyBtn.querySelector('.idm-serial-text');
+          if (textElem) textElem.textContent = curT.serial_btn_float_hls;
+        }
+        showToast(curT.toast_bridge_error, 'error');
+        console.debug('[IDM] HLS batch extraction error:', err);
+      }
+    };
+
+    const attachStickyIfEligible = () => {
+      const cId = getContentIdFromPage();
+      if (!cId) return;
+      if (!document.getElementById('idm-media-sticky-btn') && !document.getElementById('idm-serial-sticky-btn')) {
+        stickyBtn = createStickyButton(extractHlsEpisodes, t.serial_btn_float_hls);
+      }
+      resolveActivePageStream();
+    };
+
+    attachStickyIfEligible();
+
+    // Listen for SPA navigation in Next.js
+    let lastUrl = window.location.href;
+    const urlObserver = new MutationObserver(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        currentHlsActiveStream = null;
+        setTimeout(attachStickyIfEligible, 500);
+      }
+    });
+    urlObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  };
+
   // Floating Video Player Downloader
   const initFloatingVideoDownloader = () => {
     const getVideoSource = (video) => {
       if (!video) return null;
+
+      // If active HLS stream was resolved for current video/portal, return it
+      if (currentHlsActiveStream && currentHlsActiveStream.url) {
+        return currentHlsActiveStream.url;
+      }
 
       // Check currentSrc or src
       let src = video.currentSrc || video.src || '';
@@ -1818,6 +2200,8 @@
         return;
       }
 
+      const isHls = Boolean(currentHlsActiveStream && currentHlsActiveStream.url === validSrc);
+
       const container = video.parentElement || video;
       if (container.querySelector('.idm-video-float-bar')) {
         const existingBar = container.querySelector('.idm-video-float-bar');
@@ -1840,6 +2224,7 @@
         <button class="idm-video-float-btn" type="button">
           <span class="idm-video-float-icon">🎬</span>
           <span>${t.floating_player_btn}</span>
+          ${isHls ? `<span class="idm-hls-badge">${currentHlsActiveStream.quality || 720}p</span>` : ''}
         </button>
         <button class="idm-video-float-close" type="button" title="✕">✕</button>
       `;
@@ -1939,18 +2324,21 @@
         const filename = `${rawTitle}.${ext}`;
         const isInstant = isInstantKeyPressed(e);
 
+        const isHls = Boolean(currentHlsActiveStream && currentHlsActiveStream.url === videoSrc);
+        const targetFilename = (isHls && currentHlsActiveStream.filename) ? currentHlsActiveStream.filename : filename;
+
         safeSendMessage(
           {
-            action: 'downloadWithIDM',
+            action: isHls ? 'downloadHls' : 'downloadWithIDM',
             url: videoSrc,
-            filename: filename,
+            filename: targetFilename,
             toQueue: true,
             startScheduler: false,
             silent: isInstant
           },
           (res) => {
             if (res && res.success) {
-              showToast(isInstant ? t.toast_instant_sent : t.toast_sent_success, 'success');
+              showToast(isHls ? t.toast_hls_started(1) : (isInstant ? t.toast_instant_sent : t.toast_sent_success), 'success');
             } else {
               showToast(res?.error || t.toast_bridge_error, 'error');
             }
@@ -1960,6 +2348,12 @@
 
       container.appendChild(bar);
       resetHideTimer();
+    };
+
+    triggerVideoCheck = () => {
+      document.querySelectorAll('video').forEach((vid) => {
+        attachFloatBarToVideo(vid);
+      });
     };
 
     // Listen for video playback and interaction across all videos
@@ -2005,6 +2399,14 @@
     const VOD_API_DOMAIN = atob('Z2FwZmlsbS5pcg==');
     if (hostname.includes(VOD_API_DOMAIN) && /\/serial\/\d+/i.test(pathname)) {
       initStreamingVodAdapter(hostname, pathname);
+      return;
+    }
+
+    // Check if on recognized HLS streaming portal
+    const HLS_PLATFORM_1 = atob('dGVsZXdlYmlvbi5uZXQ=');
+    const HLS_PLATFORM_2 = atob('dGVsZXdlYmlvbi5jb20=');
+    if (hostname.includes(HLS_PLATFORM_1) || hostname.includes(HLS_PLATFORM_2)) {
+      initHlsStreamingPortalAdapter(hostname, pathname);
       return;
     }
 

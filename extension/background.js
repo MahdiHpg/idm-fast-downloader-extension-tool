@@ -329,6 +329,84 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      if (message.action === 'batchDownloadHls') {
+        const settings = await getSettings();
+        if (isSiteExcluded(sender.tab?.url, settings.excludedSites)) {
+          sendResponse({ success: false, error: 'این سایت در لیست استثناها قرار دارد و دانلود توسط IDM غیرفعال است' });
+          return;
+        }
+
+        const items = message.items || [];
+        const payload = {
+          action: 'batchHlsDownload',
+          items: items
+        };
+
+        const result = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendNativeMessage(
+              NATIVE_HOST_NAME,
+              payload,
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  resolve({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                if (response && response.status === 'ok') {
+                  resolve({ success: true, count: response.count });
+                } else {
+                  resolve({ success: false, error: response?.message || 'خطا در شروع دانلود استریم' });
+                }
+              }
+            );
+          } catch (err) {
+            resolve({ success: false, error: err.message });
+          }
+        });
+
+        sendResponse(result);
+        return;
+      }
+
+      if (message.action === 'downloadHls') {
+        const settings = await getSettings();
+        if (isSiteExcluded(sender.tab?.url, settings.excludedSites)) {
+          sendResponse({ success: false, error: 'این سایت در لیست استثناها قرار دارد و دانلود توسط IDM غیرفعال است' });
+          return;
+        }
+
+        const payload = {
+          action: 'downloadHls',
+          url: message.url,
+          filename: message.filename
+        };
+
+        const result = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendNativeMessage(
+              NATIVE_HOST_NAME,
+              payload,
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  resolve({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                if (response && response.status === 'ok') {
+                  resolve({ success: true });
+                } else {
+                  resolve({ success: false, error: response?.message || 'خطا در شروع دانلود استریم' });
+                }
+              }
+            );
+          } catch (err) {
+            resolve({ success: false, error: err.message });
+          }
+        });
+
+        sendResponse(result);
+        return;
+      }
+
       sendResponse({ success: false, error: 'Unknown action' });
     } catch (err) {
       sendResponse({ success: false, error: err.message });

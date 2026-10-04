@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Net;
+using System.Threading;
 using Microsoft.Win32;
 
 namespace IdmNativeBridge
@@ -222,6 +224,111 @@ namespace IdmNativeBridge
             return string.IsNullOrEmpty(cleaned) ? null : cleaned;
         }
 
+        class HlsDownloader
+        {
+            public static string GetDefaultDownloadPath()
+            {
+                try
+                {
+                    string userDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                    if (Directory.Exists(userDownloads)) return userDownloads;
+                }
+                catch { }
+                return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            }
+
+            public static void StartDownloadJob(List<BatchItem> items)
+            {
+                Thread t = new Thread(() =>
+                {
+                    try
+                    {
+                        ServicePointManager.DefaultConnectionLimit = 32;
+                        try
+                        {
+                            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+                        }
+                        catch { }
+
+                        string saveDir = GetDefaultDownloadPath();
+
+                        foreach (var item in items)
+                        {
+                            if (string.IsNullOrEmpty(item.Url)) continue;
+
+                            try
+                            {
+                                string safeFn = SanitizeFilename(item.Filename);
+                                if (string.IsNullOrEmpty(safeFn))
+                                {
+                                    safeFn = "stream_video_" + DateTime.Now.Ticks + ".ts";
+                                }
+                                if (!safeFn.EndsWith(".ts", StringComparison.OrdinalIgnoreCase) && !safeFn.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    safeFn += ".ts";
+                                }
+
+                                string outputPath = Path.Combine(saveDir, safeFn);
+
+                                string playlistText = "";
+                                using (var client = new WebClient())
+                                {
+                                    client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+                                    playlistText = client.DownloadString(item.Url);
+                                }
+
+                                var lines = playlistText.Split('\n');
+                                var segUrls = new List<string>();
+                                Uri baseUri = new Uri(item.Url);
+                                foreach (var l in lines)
+                                {
+                                    string line = l.Trim();
+                                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+                                    segUrls.Add(new Uri(baseUri, line).AbsoluteUri);
+                                }
+
+                                if (segUrls.Count == 0) continue;
+
+                                using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                                {
+                                    for (int i = 0; i < segUrls.Count; i++)
+                                    {
+                                        int retries = 3;
+                                        byte[] data = null;
+                                        while (retries > 0 && data == null)
+                                        {
+                                            try
+                                            {
+                                                using (var client = new WebClient())
+                                                {
+                                                    client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+                                                    data = client.DownloadData(segUrls[i]);
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                retries--;
+                                                Thread.Sleep(300);
+                                            }
+                                        }
+
+                                        if (data != null)
+                                        {
+                                            fs.Write(data, 0, data.Length);
+                                        }
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch { }
+                });
+                t.IsBackground = true;
+                t.Start();
+            }
+        }
+
         static string HandleMessage(string json)
         {
             string idmPath = GetIdmPath();
@@ -236,7 +343,33 @@ namespace IdmNativeBridge
                 return "{\"status\":\"ok\",\"action\":\"pong\",\"idmPath\":\"" + idmPath.Replace("\\", "\\\\") + "\"}";
             }
 
-            // Batch Download Support
+            // Direct HLS Stream Download Support
+            if (string.Equals(action, "batchHlsDownload", StringComparison.OrdinalIgnoreCase))
+            {
+                var hlsItems = ExtractBatchItems(json);
+                if (hlsItems.Count == 0)
+                {
+                    return "{\"status\":\"error\",\"message\":\"No URLs provided in batch list\"}";
+                }
+
+                HlsDownloader.StartDownloadJob(hlsItems);
+                return "{\"status\":\"ok\",\"action\":\"batchHlsDownload\",\"count\":" + hlsItems.Count + "}";
+            }
+
+            if (string.Equals(action, "downloadHls", StringComparison.OrdinalIgnoreCase))
+            {
+                string hlsUrl = ExtractJsonValue(json, "url");
+                string hlsFn = ExtractJsonValue(json, "filename");
+                if (string.IsNullOrEmpty(hlsUrl))
+                {
+                    return "{\"status\":\"error\",\"message\":\"No URL provided\"}";
+                }
+
+                var list = new List<BatchItem> { new BatchItem { Url = hlsUrl, Filename = hlsFn } };
+                HlsDownloader.StartDownloadJob(list);
+                return "{\"status\":\"ok\",\"action\":\"downloadHls\",\"url\":\"" + hlsUrl.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}";
+            }
+
             // Batch Download Support
             if (string.Equals(action, "batchDownload", StringComparison.OrdinalIgnoreCase))
             {
