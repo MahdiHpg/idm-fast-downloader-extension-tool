@@ -42,12 +42,6 @@ const I18N = {
     setting_intercept_browser_title: 'رهگیری دانلودهای مرورگر',
     setting_intercept_browser_sub: 'لغو دانلود پیش‌فرض مرورگر و انتقال به IDM',
     setting_toast_title: 'نمایش پیام شناور در صفحه',
-    setting_bypass_title: 'کلید میانبر دور زدن (Bypass)',
-    setting_bypass_sub: 'هنگام نگه داشتن این کلید، دانلود با مرورگر انجام می‌شود',
-    bypass_alt: 'کلید Alt (پیش‌فرض)',
-    bypass_shift: 'کلید Shift',
-    bypass_ctrl: 'کلید Ctrl',
-    bypass_none: 'غیرفعال',
     setting_floating_video_title: 'نوار شناور روی پلیر ویدیو',
     setting_floating_video_sub: 'پیشنهاد دانلود هنگام پخش ویدیو و استریم‌ها',
     setting_preview_size_title: 'پیش‌نمایش حجم فایل‌ها',
@@ -58,11 +52,6 @@ const I18N = {
     instant_alt: 'کلید Alt',
     instant_shift: 'کلید Shift',
     instant_none: 'غیرفعال',
-    setting_queue_mode_title: 'حالت پیش‌فرض ارسال به IDM',
-    setting_queue_mode_sub: 'نحوه دریافت لینک‌ها در IDM',
-    queue_main: '📋 ارسال به صف اصلی (Main Queue)',
-    queue_immediate: '🚀 شروع دانلود فوری (Start Immediately)',
-    queue_scheduler: '🌙 صف زمان‌بندی / شبانه (Scheduler)',
     exts_covered: 'پسوندهای تحت پوشش',
     ext_input_placeholder: 'پسوند جدید (مثلاً: MKV)',
     btn_add: 'افزودن',
@@ -105,23 +94,12 @@ const I18N = {
     setting_preview_size_sub: 'Fetch & show file sizes in batch modal',
     setting_toast_title: 'In-Page Toast Notification',
     setting_toast_sub: 'Show status alert when sending links to IDM',
-    setting_bypass_title: 'Bypass Hotkey',
-    setting_bypass_sub: 'Hold this key while clicking to download via browser',
-    bypass_alt: 'Alt key (Default)',
-    bypass_shift: 'Shift key',
-    bypass_ctrl: 'Ctrl key',
-    bypass_none: 'Disabled',
     setting_instant_key_title: 'Instant Download Hotkey',
     setting_instant_key_sub: 'Hold this key while clicking a link to start download instantly',
     instant_ctrl: 'Ctrl key (Default)',
     instant_alt: 'Alt key',
     instant_shift: 'Shift key',
     instant_none: 'Disabled',
-    setting_queue_mode_title: 'Default IDM Send Mode',
-    setting_queue_mode_sub: 'How downloads are queued in IDM',
-    queue_main: '📋 Main Download Queue',
-    queue_immediate: '🚀 Start Immediately',
-    queue_scheduler: '🌙 Scheduler / Night Queue',
     exts_covered: 'Monitored File Types',
     ext_input_placeholder: 'New extension (e.g. MKV)',
     btn_add: 'Add',
@@ -156,9 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleFloatingVideoBar = document.getElementById('toggleFloatingVideoBar');
   const togglePreviewFileSize = document.getElementById('togglePreviewFileSize');
   const toggleShowToast = document.getElementById('toggleShowToast');
-  const selectBypassKey = document.getElementById('selectBypassKey');
   const selectInstantKey = document.getElementById('selectInstantKey');
-  const selectQueueMode = document.getElementById('selectQueueMode');
 
   const extCount = document.getElementById('extCount');
   const extTagsContainer = document.getElementById('extTagsContainer');
@@ -411,9 +387,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         toggleFloatingVideoBar.checked = currentSettings.floatingVideoBar !== false;
         togglePreviewFileSize.checked = currentSettings.previewFileSize !== false;
         toggleShowToast.checked = currentSettings.showToast !== false;
-        selectBypassKey.value = currentSettings.bypassKey || 'Alt';
         selectInstantKey.value = currentSettings.instantKey || 'Ctrl';
-        selectQueueMode.value = currentSettings.defaultQueue || 'queue';
 
         // Apply saved language preference
         currentLang = currentSettings.language || 'fa';
@@ -497,18 +471,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveSettings();
   });
 
-  selectBypassKey.addEventListener('change', async () => {
-    currentSettings.bypassKey = selectBypassKey.value;
-    await saveSettings();
-  });
-
   selectInstantKey.addEventListener('change', async () => {
     currentSettings.instantKey = selectInstantKey.value;
-    await saveSettings();
-  });
-
-  selectQueueMode.addEventListener('change', async () => {
-    currentSettings.defaultQueue = selectQueueMode.value;
     await saveSettings();
   });
 

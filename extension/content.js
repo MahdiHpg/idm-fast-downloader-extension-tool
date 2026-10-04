@@ -10,12 +10,10 @@
   let cachedSettings = {
     enabled: true,
     interceptLinks: true,
-    bypassKey: 'Alt',
     showToast: true,
     instantKey: 'Ctrl',
     floatingVideoBar: true,
     previewFileSize: true,
-    defaultQueue: 'queue',
     language: 'fa',
     excludedSites: [],
     extensions: [
@@ -53,9 +51,6 @@
       modal_btn_txt: 'خروجی .txt',
       modal_btn_queue: 'ارسال به IDM',
       modal_btn_sending: 'در حال ارسال به IDM...',
-      queue_main: '📋 صف اصلی IDM',
-      queue_immediate: '🚀 دانلود فوری',
-      queue_scheduler: '🌙 صف زمان‌بندی',
       serial_btn_extract: 'استخراج قسمت‌ها و کیفیت‌ها (IDM)',
       serial_btn_float: '🎬 استخراج قسمت‌های سریال با IDM',
       serial_btn_float_count: (n) => `🎬 استخراج هوشمند قسمت‌ها (${n} فایل)`,
@@ -108,9 +103,6 @@
       modal_btn_txt: 'Export .txt',
       modal_btn_queue: 'Send to IDM',
       modal_btn_sending: 'Sending to IDM...',
-      queue_main: '📋 Main IDM Queue',
-      queue_immediate: '🚀 Start Immediately',
-      queue_scheduler: '🌙 Scheduler Queue',
       serial_btn_extract: 'Batch Extract Episodes (IDM)',
       serial_btn_float: '🎬 Batch Extract Episodes (IDM)',
       serial_btn_float_count: (n) => `🎬 Extract Episodes (${n} files)`,
@@ -301,15 +293,6 @@
     return false;
   };
 
-  // Check if bypass key is currently pressed
-  const isBypassKeyPressed = (event) => {
-    const key = cachedSettings.bypassKey;
-    if (key === 'Alt' && event.altKey) return true;
-    if (key === 'Shift' && event.shiftKey) return true;
-    if (key === 'Ctrl' && (event.ctrlKey || event.metaKey)) return true;
-    return false;
-  };
-
   // Check if instant download hotkey is currently pressed
   const isInstantKeyPressed = (event) => {
     const key = cachedSettings.instantKey;
@@ -319,48 +302,11 @@
     return false;
   };
 
-  // Window keyboard listener to sync bypass key state with background service worker
-  window.addEventListener(
-    'keydown',
-    (e) => {
-      if (!isExtensionValid()) return;
-      const key = cachedSettings.bypassKey;
-      if ((key === 'Alt' && e.altKey) || (key === 'Shift' && e.shiftKey) || (key === 'Ctrl' && (e.ctrlKey || e.metaKey))) {
-        safeSendMessage({ action: 'setBypassState', active: true });
-      }
-    },
-    true
-  );
-
-  window.addEventListener(
-    'keyup',
-    (e) => {
-      if (!isExtensionValid()) return;
-      const key = cachedSettings.bypassKey;
-      if ((key === 'Alt' && !e.altKey) || (key === 'Shift' && !e.shiftKey) || (key === 'Ctrl' && !e.ctrlKey && !e.metaKey)) {
-        safeSendMessage({ action: 'setBypassState', active: false });
-      }
-    },
-    true
-  );
-
   // Intercept single click on links
   window.addEventListener(
     'click',
     (event) => {
       if (!cachedSettings.enabled || !cachedSettings.interceptLinks || isCurrentSiteExcluded() || !isExtensionValid()) {
-        return;
-      }
-
-      // If user holds bypass key (e.g. Alt), notify background and allow normal browser action
-      if (isBypassKeyPressed(event)) {
-        const anchor = event.target.closest('a');
-        if (anchor && anchor.href) {
-          safeSendMessage({
-            action: 'bypassDownload',
-            url: anchor.href
-          });
-        }
         return;
       }
 
@@ -902,12 +848,7 @@
               <span>📄 ${t.modal_btn_txt}</span>
             </button>
           </div>
-          <div class="idm-btn-group-left" style="display:flex;align-items:center;gap:8px;">
-            <select id="idm-modal-queue-select" class="idm-modal-queue-select" title="انتخاب صف IDM">
-              <option value="queue" ${cachedSettings.defaultQueue === 'queue' ? 'selected' : ''}>${t.queue_main}</option>
-              <option value="immediate" ${cachedSettings.defaultQueue === 'immediate' ? 'selected' : ''}>${t.queue_immediate}</option>
-              <option value="scheduler" ${cachedSettings.defaultQueue === 'scheduler' ? 'selected' : ''}>${t.queue_scheduler}</option>
-            </select>
+          <div class="idm-btn-group-left">
             <button class="idm-btn idm-btn-primary" id="idm-btn-send-queue">
               <span>🚀 ${t.modal_btn_queue}</span>
             </button>
@@ -924,30 +865,34 @@
 
     let isDragging = false;
     let hasMoved = false;
-    let startX = 0;
-    let startY = 0;
-    let initialLeft = 0;
-    let initialTop = 0;
+    let startMouseX = 0;
+    let startMouseY = 0;
+    let modalStartX = 0;
+    let modalStartY = 0;
 
     const onMouseMove = (e) => {
       if (!isDragging) return;
 
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const dx = e.clientX - startMouseX;
+      const dy = e.clientY - startMouseY;
 
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         hasMoved = true;
       }
 
-      const rect = modalElem.getBoundingClientRect();
-      const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
-      const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+      const modalWidth = modalElem.offsetWidth;
+      const modalHeight = modalElem.offsetHeight;
 
-      const newLeft = Math.max(10, Math.min(maxLeft, initialLeft + dx));
-      const newTop = Math.max(10, Math.min(maxTop, initialTop + dy));
+      const minLeft = 10;
+      const maxLeft = Math.max(10, window.innerWidth - modalWidth - 10);
+      const minTop = 10;
+      const maxTop = Math.max(10, window.innerHeight - modalHeight - 10);
 
-      modalElem.style.left = `${newLeft}px`;
-      modalElem.style.top = `${newTop}px`;
+      const targetLeft = Math.max(minLeft, Math.min(maxLeft, modalStartX + dx));
+      const targetTop = Math.max(minTop, Math.min(maxTop, modalStartY + dy));
+
+      modalElem.style.left = `${targetLeft}px`;
+      modalElem.style.top = `${targetTop}px`;
     };
 
     const onMouseUp = () => {
@@ -972,18 +917,19 @@
 
       isDragging = true;
       hasMoved = false;
-      startX = e.clientX;
-      startY = e.clientY;
+      startMouseX = e.clientX;
+      startMouseY = e.clientY;
 
       const rect = modalElem.getBoundingClientRect();
-      initialLeft = rect.left;
-      initialTop = rect.top;
+      modalStartX = rect.left;
+      modalStartY = rect.top;
 
       modalElem.style.position = 'fixed';
-      modalElem.style.left = `${initialLeft}px`;
-      modalElem.style.top = `${initialTop}px`;
+      modalElem.style.left = `${modalStartX}px`;
+      modalElem.style.top = `${modalStartY}px`;
+      modalElem.style.right = 'auto';
+      modalElem.style.bottom = 'auto';
       modalElem.style.margin = '0';
-      modalElem.style.transform = 'none';
       modalElem.classList.add('idm-modal-dragging');
 
       document.addEventListener('mousemove', onMouseMove);
@@ -997,19 +943,26 @@
     const onTouchMove = (e) => {
       if (!isDragging || !e.touches || e.touches.length !== 1) return;
       const touch = e.touches[0];
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+      const dx = touch.clientX - startMouseX;
+      const dy = touch.clientY - startMouseY;
 
-      const rect = modalElem.getBoundingClientRect();
-      const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
-      const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasMoved = true;
+      }
 
-      const newLeft = Math.max(10, Math.min(maxLeft, initialLeft + dx));
-      const newTop = Math.max(10, Math.min(maxTop, initialTop + dy));
+      const modalWidth = modalElem.offsetWidth;
+      const modalHeight = modalElem.offsetHeight;
 
-      modalElem.style.left = `${newLeft}px`;
-      modalElem.style.top = `${newTop}px`;
+      const minLeft = 10;
+      const maxLeft = Math.max(10, window.innerWidth - modalWidth - 10);
+      const minTop = 10;
+      const maxTop = Math.max(10, window.innerHeight - modalHeight - 10);
+
+      const targetLeft = Math.max(minLeft, Math.min(maxLeft, modalStartX + dx));
+      const targetTop = Math.max(minTop, Math.min(maxTop, modalStartY + dy));
+
+      modalElem.style.left = `${targetLeft}px`;
+      modalElem.style.top = `${targetTop}px`;
     };
 
     const onTouchEnd = () => {
@@ -1024,15 +977,18 @@
       const touch = e.touches[0];
       isDragging = true;
       hasMoved = false;
-      startX = touch.clientX;
-      startY = touch.clientY;
+      startMouseX = touch.clientX;
+      startMouseY = touch.clientY;
+
       const rect = modalElem.getBoundingClientRect();
-      initialLeft = rect.left;
-      initialTop = rect.top;
+      modalStartX = rect.left;
+      modalStartY = rect.top;
 
       modalElem.style.position = 'fixed';
-      modalElem.style.left = `${initialLeft}px`;
-      modalElem.style.top = `${initialTop}px`;
+      modalElem.style.left = `${modalStartX}px`;
+      modalElem.style.top = `${modalStartY}px`;
+      modalElem.style.right = 'auto';
+      modalElem.style.bottom = 'auto';
       modalElem.style.margin = '0';
       modalElem.classList.add('idm-modal-dragging');
     };
@@ -1234,9 +1190,6 @@
 
       if (selectedItems.length === 0) return;
 
-      const queueSelect = overlay.querySelector('#idm-modal-queue-select');
-      const queueMode = queueSelect ? queueSelect.value : (cachedSettings.defaultQueue || 'queue');
-
       sendBtn.disabled = true;
       sendBtn.innerHTML = `<span>⏳ ${t.modal_btn_sending}</span>`;
 
@@ -1245,7 +1198,7 @@
           action: 'batchDownloadWithIDM',
           items: selectedItems,
           urls: selectedItems.map((it) => it.url),
-          queueMode
+          queueMode: 'queue'
         },
         (res) => {
           closeModal();
@@ -1824,11 +1777,46 @@
 
   // Floating Video Player Downloader
   const initFloatingVideoDownloader = () => {
+    const getVideoSource = (video) => {
+      if (!video) return null;
+
+      // Check currentSrc or src
+      let src = video.currentSrc || video.src || '';
+      if (src && !src.startsWith('blob:') && !src.startsWith('mediasource:') && /^https?:\/\//i.test(src)) {
+        return src;
+      }
+
+      // Check child <source> elements
+      const sources = Array.from(video.querySelectorAll('source'));
+      for (const s of sources) {
+        const sSrc = s.src || s.getAttribute('src') || '';
+        if (sSrc && !sSrc.startsWith('blob:') && !sSrc.startsWith('mediasource:') && /^https?:\/\//i.test(sSrc)) {
+          return sSrc;
+        }
+      }
+
+      // Check data attributes
+      const dataUrl = video.getAttribute('data-src') || video.getAttribute('data-url') || '';
+      if (dataUrl && !dataUrl.startsWith('blob:') && !dataUrl.startsWith('mediasource:') && /^https?:\/\//i.test(dataUrl)) {
+        return dataUrl;
+      }
+
+      return null;
+    };
+
     const attachFloatBarToVideo = (video) => {
       if (!cachedSettings.enabled || cachedSettings.floatingVideoBar === false || isCurrentSiteExcluded()) return;
       if (!video || video.dataset.idmFloatDismissed === 'true') return;
       if (video.offsetWidth > 0 && video.offsetWidth < 160) return;
       if (video.offsetHeight > 0 && video.offsetHeight < 100) return;
+
+      // Verify behind the scenes if video has a valid direct downloadable HTTP/HTTPS source (not internal blob or MSE stream)
+      const validSrc = getVideoSource(video);
+      if (!validSrc) {
+        // Blob / MSE stream cannot be directly downloaded by IDM (e.g. YouTube player).
+        // Never show the floating button if it cannot be downloaded.
+        return;
+      }
 
       const container = video.parentElement || video;
       if (container.querySelector('.idm-video-float-bar')) {
@@ -1929,22 +1917,9 @@
         e.stopPropagation();
         e.preventDefault();
 
-        let videoSrc = video.currentSrc || video.src;
-        if (!videoSrc || videoSrc.startsWith('blob:')) {
-          const sources = Array.from(video.querySelectorAll('source'));
-          const validSource = sources.find((s) => s.src && !s.src.startsWith('blob:'));
-          if (validSource) {
-            videoSrc = validSource.src;
-          } else {
-            const dataUrl = video.getAttribute('data-src') || video.getAttribute('data-url');
-            if (dataUrl && !dataUrl.startsWith('blob:')) {
-              videoSrc = dataUrl;
-            }
-          }
-        }
-
+        const videoSrc = getVideoSource(video);
         if (!videoSrc) {
-          showToast(t.toast_batch_error, 'error');
+          bar.remove();
           return;
         }
 
@@ -1963,16 +1938,14 @@
 
         const filename = `${rawTitle}.${ext}`;
         const isInstant = isInstantKeyPressed(e);
-        const toQueue = isInstant || (cachedSettings.defaultQueue === 'queue');
-        const startScheduler = cachedSettings.defaultQueue === 'scheduler';
 
         safeSendMessage(
           {
             action: 'downloadWithIDM',
             url: videoSrc,
             filename: filename,
-            toQueue: toQueue,
-            startScheduler: startScheduler,
+            toQueue: true,
+            startScheduler: false,
             silent: isInstant
           },
           (res) => {

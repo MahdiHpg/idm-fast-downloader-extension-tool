@@ -62,13 +62,12 @@
   - نام فایل‌ها رو با سوییچ رسمی `/f` مستقیماً با نام شفاف در صف دانلود IDM تنظیم می‌کنه تا اسم‌ها به صورت هش یا بدون پسوند ذخیره نشوند.
 - **📺 نوار شناور روی پلیرهای ویدیو و استریم (Floating Player Bar):** هنگام پخش یا هاور روی پلیرهای ویدیو در وب‌سایت‌های مختلف، نوار شیک دانلود ظاهر می‌شود تا ویدیو با نام صفحه و پسوند درست مستقیماً به IDM منتقل شود.
 - **📊 پیش‌نمایش حجم فایل‌ها پیش از دانلود (File Size Preview):** استعلام سبک و هوشمند حجم هر کیفیت و محاسبه مجموع حجم فایل‌های انتخابی در مدال دانلود دسته‌ای.
-- **📋 مدیریت هوشمند صف IDM (Queue Selection):** امکان ارسال به صف اصلی (`/a`)، شروع دانلود فوری یا هدایت به صف زمان‌بندی شبانه (`/s`).
 - **⚡ کلید دانلود آنی و مستقیم (Fast Action Click):** فشردن کلید Ctrl هنگام کلیک روی لینک، بدون باز شدن پنجره‌های اضافی دانلود را مستقیماً به صف می‌فرستد.
+- **🖱️ پنجره پاپ‌آپ با قابلیت جابجایی آزادانه (Freely Draggable Modal):** پاپ‌آپ دانلود دسته‌ای به طور پیش‌فرض در گوشه بالای صفحه قرار می‌گیرد تا محتوای سایت را نپوشاند و در صورت نیاز می‌توانید آن را با ماوس آزادانه در کل فضای مرورگر جابجا کنید.
 - **🚫 لیست استثنا و مسدودسازی سایت‌ها (Excluded Sites / Domain Blocklist):** کلید سریع تک‌کلیکی در پاپ‌آپ برای غیرفعال‌سازی IDM در سایت‌های خاص و دانلود توسط خود مرورگر.
 - **📥 دانلود هوشمند دسته‌ای (Batch Floating Bar):** با ماوس چند خط یا جدول پارت‌های دانلود (مثلاً پارت ۱ تا ۱۰) رو هایلایت/سلکت کنید؛ یک نوار ابزار شیک و کاربردی ظاهر می‌شه (دانلود با IDM، کپی لینک‌ها، خروجی متنی `.txt`).
 - **🌐 دوزبانه (فارسی / English):** قابلیت سوییچ آنی زبان رابط کاربری بین `FA` و `EN` با یک کلیک.
 - **🛡️ رهگیری دانلودهای مرورگر (Browser Interception):** دانلودهایی که آدرس مستقیم ندارند یا از طریق اسکریپت‌های سرور شروع می‌شن رو هم شکار می‌کنه و به IDM تحویل می‌ده.
-- **🎯 کلید میانبر دور زدن (Bypass Key):** اگر خواستید لینکی استثنائاً با خود مرورگر دانلود بشه، کافیه کلید `Alt` رو نگه دارید.
 - **🖱️ منوی راست‌کلیک (Context Menu):** گزینه «دانلود با IDM» برای هر لینک، عکس، صوت یا ویدیوی صفحه.
 - **🎨 پاپ‌آپ تاریک و چشم‌نواز:** رابط کاربری مدرن با تم تاریک، بررسی زنده وضعیت اتصال پل بومی و مدیریت لیست پسوندها و سایت‌های استثنا.
 
@@ -162,8 +161,8 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
   - Send custom filenames directly via IDM's `/f` command-line switch so all files land neatly named in IDM's queue.
 - **📺 Floating Player Bar:** Sleek floating button appearing on playing web videos/streams for one-click download with clean filename and extension.
 - **📊 File Size Preview:** Asynchronously fetches exact file sizes for qualities and displays the total batch download size.
-- **📋 IDM Queue Selection:** Choose to send downloads to the Main Queue (`/a`), start immediately, or schedule for overnight queues (`/s`).
 - **⚡ Instant Action Hotkey:** Hold `Ctrl` while clicking any link to silently push it directly to the download queue.
+- **🖱️ Freely Draggable Modal:** Batch download dialog defaults to the top corner to prevent obscuring underlying webpage content, and can be freely dragged anywhere across the viewport.
 - **🚫 Domain Exclusion Blocklist:** One-click toggle in the popup to disable IDM on specific sites and let the browser download natively.
 - **📥 Intelligent Batch Floating Toolbar:** Highlight/select any text or table rows containing download links (e.g. multi-part archives) to reveal a smart floating bar:
   - 📥 **Download with IDM:** Opens an interactive batch checklist dialog to send all selected items directly to IDM's queue.
@@ -171,7 +170,6 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
   - 📄 **Export .TXT:** Generates and downloads a clean text file of the selected links.
 - **🌐 Full Bilingual Support (FA / EN):** Seamless one-click language toggle between English and Persian across both the popup and in-page modal dialogs.
 - **🛡️ Browser Interception:** Catches redirected/script-driven downloads that don't have static file extensions in their URL.
-- **🎯 Configurable Bypass Hotkey:** Hold `Alt` (or your preferred hotkey) while clicking to download through the browser as normal.
 - **🖱️ Right-Click Context Menu:** Send any link, media file, audio, or video directly to IDM with a single right-click.
 - **🎨 Sleek Dark-themed Popup:** Live connection status monitoring, custom file extension manager, and domain blacklist controls.
 

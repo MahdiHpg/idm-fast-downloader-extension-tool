@@ -9,11 +9,9 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   interceptLinks: true,
   interceptBrowserDownloads: true,
-  bypassKey: 'Alt', // 'Alt' | 'Shift' | 'Ctrl' | 'None'
   instantKey: 'Ctrl', // 'Ctrl' | 'Alt' | 'Shift' | 'None'
   floatingVideoBar: true,
   previewFileSize: true,
-  defaultQueue: 'queue', // 'queue' | 'immediate' | 'scheduler'
   showToast: true,
   language: 'fa', // 'fa' | 'en'
   excludedSites: [],
@@ -55,29 +53,6 @@ const cleanRecentDownloads = () => {
       recentDownloads.delete(url);
     }
   }
-};
-
-// Tracking for bypass hotkey to allow normal browser downloads
-const bypassedUrls = new Map();
-const BYPASS_TTL = 15000; // 15 seconds
-let isBypassKeyHeld = false;
-
-const cleanBypassedUrls = () => {
-  const now = Date.now();
-  for (const [u, t] of bypassedUrls.entries()) {
-    if (now - t > BYPASS_TTL) bypassedUrls.delete(u);
-  }
-};
-
-const isUrlBypassed = (url) => {
-  cleanBypassedUrls();
-  if (!url) return false;
-  for (const bUrl of bypassedUrls.keys()) {
-    if (url === bUrl || url.startsWith(bUrl) || bUrl.startsWith(url)) {
-      return true;
-    }
-  }
-  return false;
 };
 
 // Helper to extract a friendly filename from URL query params (e.g. fn=, filename=) or path
@@ -267,20 +242,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
-      if (message.action === 'bypassDownload') {
-        if (message.url) {
-          bypassedUrls.set(message.url, Date.now());
-        }
-        sendResponse({ success: true });
-        return;
-      }
-
-      if (message.action === 'setBypassState') {
-        isBypassKeyHeld = Boolean(message.active);
-        sendResponse({ success: true });
-        return;
-      }
-
       if (message.action === 'getFileSize') {
         try {
           const headRes = await fetch(message.url, { method: 'HEAD', cache: 'no-store' });
@@ -323,15 +284,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const items = message.items;
         const urls = message.urls;
-        const queueMode = message.queueMode || 'queue'; // 'queue' | 'immediate' | 'scheduler'
-
-        const toQueue = queueMode !== 'immediate';
-        const startScheduler = queueMode === 'scheduler';
 
         const payload = {
           action: 'batchDownload',
-          toQueue: toQueue,
-          startScheduler: startScheduler
+          toQueue: true,
+          startScheduler: false
         };
 
         let count = 0;
@@ -403,12 +360,6 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
       return;
     }
 
-    // If user held bypass key (e.g. Alt) or URL was whitelisted for browser download, DO NOT INTERCEPT
-    if (isBypassKeyHeld || isUrlBypassed(downloadUrl)) {
-      console.log('[IDM] Download bypassed by user hotkey; proceeding with browser download:', downloadUrl);
-      return;
-    }
-
     // Check if this URL was recently sent to IDM to prevent infinite intercept loops
     cleanRecentDownloads();
     if (recentDownloads.has(downloadUrl)) {
@@ -435,9 +386,8 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
       // Forward to IDM with extracted filename
       const suggestedFn = downloadItem.filename ? downloadItem.filename.split(/[\\/]/).pop() : '';
       const finalFilename = suggestedFn || extractFilenameFromUrl(downloadUrl);
-      const toQueue = settings.defaultQueue === 'scheduler' || settings.defaultQueue === 'queue';
 
-      const result = await sendToIDM(downloadUrl, downloadItem.referrer || '', finalFilename, toQueue);
+      const result = await sendToIDM(downloadUrl, downloadItem.referrer || '', finalFilename, true);
       if (result.success) {
         console.log('[IDM] Browser download successfully redirected to IDM:', downloadUrl, 'filename:', finalFilename);
       }

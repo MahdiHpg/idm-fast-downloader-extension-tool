@@ -179,18 +179,19 @@
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   direction: rtl;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Vazirmatn", "Tahoma", sans-serif;
   animation: idm-fade-in 0.2s ease forwards;
 }
 
 .idm-batch-modal {
-  width: 90%;
-  max-width: 540px;
-  max-height: 85vh;
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 520px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
   background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
@@ -200,6 +201,11 @@
   overflow: hidden;
   color: #f8fafc;
   transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+#idm-batch-modal-overlay[style*="direction: ltr"] .idm-batch-modal {
+  right: auto;
+  left: 24px;
 }
 
 .idm-batch-modal.idm-modal-dragging {
@@ -767,23 +773,5 @@
 .idm-video-float-close:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-}
-
-/* Queue select in Batch Modal footer */
-.idm-modal-queue-select {
-  background: rgba(30, 41, 59, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #e2e8f0;
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  outline: none;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color 0.2s ease;
-}
-
-.idm-modal-queue-select:focus {
-  border-color: #3b82f6;
 }
 
