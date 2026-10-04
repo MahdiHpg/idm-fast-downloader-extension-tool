@@ -46,19 +46,6 @@
       <button class="btn-icon" id="btnRefresh" title="بررسی مجدد اتصال" data-i18n-title="refresh_btn_title">🔄</button>
     </div>
 
-    <!-- Quick Download Box -->
-    <div class="card quick-download-card">
-      <div class="card-header">
-        <span class="card-icon">🚀</span>
-        <span class="card-title" data-i18n="quick_download_title">دانلود سریع لینک</span>
-      </div>
-      <div class="input-group">
-        <input type="url" id="quickUrlInput" placeholder="لینک دانلود را اینجا وارد کنید..." dir="ltr" data-i18n-placeholder="quick_input_placeholder">
-        <button id="btnQuickDownload" class="btn-primary" data-i18n="btn_download">دانلود</button>
-      </div>
-      <div id="quickDownloadMsg" class="form-msg"></div>
-    </div>
-
     <!-- Main Toggles -->
     <div class="card settings-card">
       <div class="card-header">
@@ -101,6 +88,28 @@
 
       <div class="setting-item">
         <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_floating_video_title">نوار شناور روی پلیر ویدیو</span>
+          <span class="setting-subtitle" data-i18n="setting_floating_video_sub">پیشنهاد دانلود هنگام پخش ویدیو و استریم‌ها</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleFloatingVideoBar">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_preview_size_title">پیش‌نمایش حجم فایل‌ها</span>
+          <span class="setting-subtitle" data-i18n="setting_preview_size_sub">استعلام و نمایش حجم در دانلود دسته‌ای</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="togglePreviewFileSize">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
           <span class="setting-title" data-i18n="setting_toast_title">نمایش پیام شناور در صفحه</span>
           <span class="setting-subtitle" data-i18n="setting_toast_sub">اطلاع‌رسانی هنگام انتقال لینک به IDM</span>
         </div>
@@ -120,6 +129,31 @@
           <option value="Shift" data-i18n="bypass_shift">کلید Shift</option>
           <option value="Ctrl" data-i18n="bypass_ctrl">کلید Ctrl</option>
           <option value="None" data-i18n="bypass_none">غیرفعال</option>
+        </select>
+      </div>
+
+      <div class="setting-item select-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_instant_key_title">کلید دانلود آنی (Fast Click)</span>
+          <span class="setting-subtitle" data-i18n="setting_instant_key_sub">کلیک روی لینک با این کلید، مستقیم دانلود را استارت می‌زند</span>
+        </div>
+        <select id="selectInstantKey" class="custom-select">
+          <option value="Ctrl" data-i18n="instant_ctrl">کلید Ctrl (پیش‌فرض)</option>
+          <option value="Alt" data-i18n="instant_alt">کلید Alt</option>
+          <option value="Shift" data-i18n="instant_shift">کلید Shift</option>
+          <option value="None" data-i18n="instant_none">غیرفعال</option>
+        </select>
+      </div>
+
+      <div class="setting-item select-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_queue_mode_title">حالت پیش‌فرض ارسال به IDM</span>
+          <span class="setting-subtitle" data-i18n="setting_queue_mode_sub">نحوه دریافت لینک‌ها در IDM</span>
+        </div>
+        <select id="selectQueueMode" class="custom-select">
+          <option value="queue" data-i18n="queue_main">📋 ارسال به صف اصلی (Main Queue)</option>
+          <option value="immediate" data-i18n="queue_immediate">🚀 شروع دانلود فوری (Start Immediately)</option>
+          <option value="scheduler" data-i18n="queue_scheduler">🌙 صف زمان‌بندی / شبانه (Scheduler)</option>
         </select>
       </div>
     </div>

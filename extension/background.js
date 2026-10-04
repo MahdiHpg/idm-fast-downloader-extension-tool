@@ -10,6 +10,10 @@ const DEFAULT_SETTINGS = {
   interceptLinks: true,
   interceptBrowserDownloads: true,
   bypassKey: 'Alt', // 'Alt' | 'Shift' | 'Ctrl' | 'None'
+  instantKey: 'Ctrl', // 'Ctrl' | 'Alt' | 'Shift' | 'None'
+  floatingVideoBar: true,
+  previewFileSize: true,
+  defaultQueue: 'queue', // 'queue' | 'immediate' | 'scheduler'
   showToast: true,
   language: 'fa', // 'fa' | 'en'
   extensions: [
@@ -32,6 +36,45 @@ const cleanRecentDownloads = () => {
       recentDownloads.delete(url);
     }
   }
+};
+
+// Tracking for bypass hotkey to allow normal browser downloads
+const bypassedUrls = new Map();
+const BYPASS_TTL = 15000; // 15 seconds
+let isBypassKeyHeld = false;
+
+const cleanBypassedUrls = () => {
+  const now = Date.now();
+  for (const [u, t] of bypassedUrls.entries()) {
+    if (now - t > BYPASS_TTL) bypassedUrls.delete(u);
+  }
+};
+
+const isUrlBypassed = (url) => {
+  cleanBypassedUrls();
+  if (!url) return false;
+  for (const bUrl of bypassedUrls.keys()) {
+    if (url === bUrl || url.startsWith(bUrl) || bUrl.startsWith(url)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Helper to extract a friendly filename from URL query params (e.g. fn=, filename=) or path
+const extractFilenameFromUrl = (targetUrl) => {
+  try {
+    const u = new URL(targetUrl);
+    const queryFn = u.searchParams.get('fn') || u.searchParams.get('filename') || u.searchParams.get('file') || u.searchParams.get('name');
+    if (queryFn) {
+      return decodeURIComponent(queryFn).trim();
+    }
+    const lastSegment = decodeURIComponent(u.pathname.split('/').pop().split('?')[0]);
+    if (/\.[a-z0-9]{2,5}$/i.test(lastSegment)) {
+      return lastSegment.trim();
+    }
+  } catch {}
+  return '';
 };
 
 // Setup default settings and context menus on install
@@ -67,7 +110,7 @@ const getSettings = async () => {
 };
 
 // Send URL to IDM Native Messaging Host
-const sendToIDM = async (url, referer = '') => {
+const sendToIDM = async (url, referer = '', filename = '', toQueue = false, silent = false) => {
   if (!url || typeof url !== 'string') {
     return { success: false, error: 'لینک معتبر نیست' };
   }
@@ -80,11 +123,20 @@ const sendToIDM = async (url, referer = '') => {
   cleanRecentDownloads();
   recentDownloads.set(url, Date.now());
 
+  const finalFilename = filename || extractFilenameFromUrl(url);
+
   return new Promise((resolve) => {
     try {
       chrome.runtime.sendNativeMessage(
         NATIVE_HOST_NAME,
-        { action: 'download', url: url.trim(), referer: referer || '' },
+        {
+          action: 'download',
+          url: url.trim(),
+          referer: referer || '',
+          filename: finalFilename || '',
+          toQueue: Boolean(toQueue),
+          silent: Boolean(silent)
+        },
         (response) => {
           if (chrome.runtime.lastError) {
             console.debug('Native messaging note:', chrome.runtime.lastError.message);
@@ -176,8 +228,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.action === 'downloadWithIDM') {
-        const result = await sendToIDM(message.url, message.referer || sender.tab?.url || '');
+        const result = await sendToIDM(
+          message.url,
+          message.referer || sender.tab?.url || '',
+          message.filename || '',
+          message.toQueue || false,
+          message.silent || false
+        );
         sendResponse(result);
+        return;
+      }
+
+      if (message.action === 'bypassDownload') {
+        if (message.url) {
+          bypassedUrls.set(message.url, Date.now());
+        }
+        sendResponse({ success: true });
+        return;
+      }
+
+      if (message.action === 'setBypassState') {
+        isBypassKeyHeld = Boolean(message.active);
+        sendResponse({ success: true });
+        return;
+      }
+
+      if (message.action === 'getFileSize') {
+        try {
+          const headRes = await fetch(message.url, { method: 'HEAD', cache: 'no-store' });
+          const len = headRes.headers.get('content-length');
+          if (len && !isNaN(parseInt(len, 10))) {
+            sendResponse({ success: true, size: parseInt(len, 10) });
+          } else {
+            sendResponse({ success: false, error: 'No Content-Length header' });
+          }
+        } catch (err) {
+          sendResponse({ success: false, error: err.message });
+        }
         return;
       }
 
@@ -202,10 +289,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'batchDownloadWithIDM') {
         const items = message.items;
         const urls = message.urls;
+        const queueMode = message.queueMode || 'queue'; // 'queue' | 'immediate' | 'scheduler'
+
+        const toQueue = queueMode !== 'immediate';
+        const startScheduler = queueMode === 'scheduler';
 
         const payload = {
           action: 'batchDownload',
-          toQueue: true
+          toQueue: toQueue,
+          startScheduler: startScheduler
         };
 
         let count = 0;
@@ -268,6 +360,12 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
       return;
     }
 
+    // If user held bypass key (e.g. Alt) or URL was whitelisted for browser download, DO NOT INTERCEPT
+    if (isBypassKeyHeld || isUrlBypassed(downloadUrl)) {
+      console.log('[IDM] Download bypassed by user hotkey; proceeding with browser download:', downloadUrl);
+      return;
+    }
+
     // Check if this URL was recently sent to IDM to prevent infinite intercept loops
     cleanRecentDownloads();
     if (recentDownloads.has(downloadUrl)) {
@@ -291,10 +389,14 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
         console.debug('Could not cancel browser download:', cancelErr);
       }
 
-      // Forward to IDM
-      const result = await sendToIDM(downloadUrl, downloadItem.referrer || '');
+      // Forward to IDM with extracted filename
+      const suggestedFn = downloadItem.filename ? downloadItem.filename.split(/[\\/]/).pop() : '';
+      const finalFilename = suggestedFn || extractFilenameFromUrl(downloadUrl);
+      const toQueue = settings.defaultQueue === 'scheduler' || settings.defaultQueue === 'queue';
+
+      const result = await sendToIDM(downloadUrl, downloadItem.referrer || '', finalFilename, toQueue);
       if (result.success) {
-        console.log('Browser download successfully redirected to IDM:', downloadUrl);
+        console.log('[IDM] Browser download successfully redirected to IDM:', downloadUrl, 'filename:', finalFilename);
       }
     }
   } catch (err) {

@@ -12,6 +12,10 @@
     interceptLinks: true,
     bypassKey: 'Alt',
     showToast: true,
+    instantKey: 'Ctrl',
+    floatingVideoBar: true,
+    previewFileSize: true,
+    defaultQueue: 'queue',
     language: 'fa',
     extensions: [
       'ZIP', 'RAR', '7Z', 'TAR', 'GZ', 'BZ2', 'ISO', 'IMG', 'BIN', 'DMG', 'PKG',
@@ -25,6 +29,7 @@
   const I18N_CONTENT = {
     fa: {
       toast_transferring: 'در حال انتقال لینک به IDM...',
+      toast_instant_sent: '⚡ لینک به صورت آنی به IDM فرستاده شد',
       toast_bridge_error: 'خطا: پل ارتباطی IDM متصل نیست',
       toast_sent_success: 'لینک به IDM منتقل شد و پنجره باز شد',
       toast_copied: (n) => `${n} لینک با موفقیت کپی شد`,
@@ -35,15 +40,21 @@
       float_download: 'دانلود با IDM',
       float_copy: 'کپی لینک‌ها',
       float_txt: 'خروجی متنی',
+      floating_player_btn: '🎬 دانلود این ویدیو',
+      floating_player_title: 'دانلود ویدیو با IDM',
       modal_title: 'دانلود دسته‌ای با IDM',
       modal_subtitle: (n) => `${n} لینک دانلود شناسایی شد`,
       modal_select_all: 'انتخاب همه',
       modal_count: (sel, total) => `${sel} از ${total} انتخاب شده`,
+      modal_count_with_size: (sel, total, sizeStr) => `${sel} از ${total} انتخاب شده ${sizeStr ? `• مجموع: ${sizeStr}` : ''}`,
       modal_cancel: 'لغو',
       modal_btn_copy: 'کپی لینک‌ها',
       modal_btn_txt: 'خروجی .txt',
-      modal_btn_queue: 'افزودن به صف دانلود IDM',
+      modal_btn_queue: 'ارسال به IDM',
       modal_btn_sending: 'در حال ارسال به IDM...',
+      queue_main: '📋 صف اصلی IDM',
+      queue_immediate: '🚀 دانلود فوری',
+      queue_scheduler: '🌙 صف زمان‌بندی',
       serial_btn_extract: 'استخراج قسمت‌ها و کیفیت‌ها (IDM)',
       serial_btn_float: '🎬 استخراج قسمت‌های سریال با IDM',
       serial_btn_float_count: (n) => `🎬 استخراج هوشمند قسمت‌ها (${n} فایل)`,
@@ -72,6 +83,7 @@
     },
     en: {
       toast_transferring: 'Sending link to IDM...',
+      toast_instant_sent: '⚡ Link sent to IDM instantly',
       toast_bridge_error: 'Error: IDM native bridge not connected',
       toast_sent_success: 'Link sent to IDM successfully',
       toast_copied: (n) => `${n} links copied to clipboard`,
@@ -82,15 +94,21 @@
       float_download: 'Download with IDM',
       float_copy: 'Copy Links',
       float_txt: 'Export .TXT',
+      floating_player_btn: '🎬 Download Video',
+      floating_player_title: 'Download Video with IDM',
       modal_title: 'Batch Download with IDM',
       modal_subtitle: (n) => `${n} download links detected`,
       modal_select_all: 'Select All',
       modal_count: (sel, total) => `${sel} of ${total} selected`,
+      modal_count_with_size: (sel, total, sizeStr) => `${sel} of ${total} selected ${sizeStr ? `• Total: ${sizeStr}` : ''}`,
       modal_cancel: 'Cancel',
       modal_btn_copy: 'Copy Links',
       modal_btn_txt: 'Export .txt',
-      modal_btn_queue: 'Add to IDM Queue',
+      modal_btn_queue: 'Send to IDM',
       modal_btn_sending: 'Sending to IDM...',
+      queue_main: '📋 Main IDM Queue',
+      queue_immediate: '🚀 Start Immediately',
+      queue_scheduler: '🌙 Scheduler Queue',
       serial_btn_extract: 'Batch Extract Episodes (IDM)',
       serial_btn_float: '🎬 Batch Extract Episodes (IDM)',
       serial_btn_float_count: (n) => `🎬 Extract Episodes (${n} files)`,
@@ -229,6 +247,38 @@
     return false;
   };
 
+  // Check if instant download hotkey is currently pressed
+  const isInstantKeyPressed = (event) => {
+    const key = cachedSettings.instantKey;
+    if (key === 'Ctrl' && (event.ctrlKey || event.metaKey)) return true;
+    if (key === 'Alt' && event.altKey) return true;
+    if (key === 'Shift' && event.shiftKey) return true;
+    return false;
+  };
+
+  // Window keyboard listener to sync bypass key state with background service worker
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      const key = cachedSettings.bypassKey;
+      if ((key === 'Alt' && e.altKey) || (key === 'Shift' && e.shiftKey) || (key === 'Ctrl' && (e.ctrlKey || e.metaKey))) {
+        chrome.runtime.sendMessage({ action: 'setBypassState', active: true }).catch(() => {});
+      }
+    },
+    true
+  );
+
+  window.addEventListener(
+    'keyup',
+    (e) => {
+      const key = cachedSettings.bypassKey;
+      if ((key === 'Alt' && !e.altKey) || (key === 'Shift' && !e.shiftKey) || (key === 'Ctrl' && !e.ctrlKey && !e.metaKey)) {
+        chrome.runtime.sendMessage({ action: 'setBypassState', active: false }).catch(() => {});
+      }
+    },
+    true
+  );
+
   // Intercept single click on links
   window.addEventListener(
     'click',
@@ -237,8 +287,15 @@
         return;
       }
 
-      // If user holds bypass key (e.g. Alt), allow normal browser action
+      // If user holds bypass key (e.g. Alt), notify background and allow normal browser action
       if (isBypassKeyPressed(event)) {
+        const anchor = event.target.closest('a');
+        if (anchor && anchor.href) {
+          chrome.runtime.sendMessage({
+            action: 'bypassDownload',
+            url: anchor.href
+          }).catch(() => {});
+        }
         return;
       }
 
@@ -256,13 +313,30 @@
         event.stopPropagation();
 
         const t = getT();
+        const extractedFn = anchor.getAttribute('download') || anchor.title || anchor.textContent?.trim() || '';
+
+        // If instant hotkey is pressed, trigger silent/direct download
+        if (isInstantKeyPressed(event)) {
+          showToast(t.toast_instant_sent, 'success');
+          chrome.runtime.sendMessage({
+            action: 'downloadWithIDM',
+            url: href,
+            referer: window.location.href,
+            filename: extractedFn,
+            toQueue: true,
+            silent: true
+          });
+          return;
+        }
+
         showToast(t.toast_transferring, 'info');
 
         chrome.runtime.sendMessage(
           {
             action: 'downloadWithIDM',
             url: href,
-            referer: window.location.href
+            referer: window.location.href,
+            filename: extractedFn
           },
           (res) => {
             if (chrome.runtime.lastError) {
@@ -657,10 +731,44 @@
       `;
     }
 
+    // Helper to format bytes into readable sizes
+    const formatFileSize = (bytes) => {
+      if (!bytes || isNaN(bytes) || bytes <= 0) return '';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+      if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(0) + ' MB';
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    };
+
+    // Subtitle filename synchronization with video filename
+    const syncSubtitleFilenames = (list) => {
+      const videoBaseMap = new Map();
+      list.forEach((item) => {
+        if (!item.isSub && item.filename && item.seasonId !== undefined && item.episodeNum !== null) {
+          const key = `${item.seasonId}_${item.episodeNum}`;
+          const base = item.filename.replace(/\.[a-zA-Z0-9]+$/, '');
+          videoBaseMap.set(key, base);
+        }
+      });
+
+      list.forEach((item) => {
+        if (item.isSub && item.seasonId !== undefined && item.episodeNum !== null) {
+          const key = `${item.seasonId}_${item.episodeNum}`;
+          const videoBase = videoBaseMap.get(key);
+          if (videoBase) {
+            const langSuffix = item.subLang === 'en' ? '.en' : (item.subLang === 'fa' ? '.fa' : '');
+            item.filename = `${videoBase}${langSuffix}.srt`;
+          }
+        }
+      });
+    };
+
+    const itemSizeCache = new Map();
+
     const renderItemsHtml = (list) => {
       if (list.length === 0) {
         return `<div class="idm-batch-empty">${t.serial_no_episodes}</div>`;
       }
+      syncSubtitleFilenames(list);
       return list.map((item, index) => {
         let tagsHtml = '';
         if (item.isSub) {
@@ -673,6 +781,9 @@
             tagsHtml += `<span class="idm-item-badge idm-badge-dubbed">${t.badge_dubbed}</span>`;
           } else {
             tagsHtml += `<span class="idm-item-badge idm-badge-original">${t.badge_original}</span>`;
+          }
+          if (itemSizeCache.has(item.url)) {
+            tagsHtml += `<span class="idm-item-badge idm-badge-size">${formatFileSize(itemSizeCache.get(item.url))}</span>`;
           }
         }
         const fnAttr = item.filename ? `data-filename="${encodeURIComponent(item.filename)}"` : '';
@@ -728,7 +839,12 @@
               <span>📄 ${t.modal_btn_txt}</span>
             </button>
           </div>
-          <div class="idm-btn-group-left">
+          <div class="idm-btn-group-left" style="display:flex;align-items:center;gap:8px;">
+            <select id="idm-modal-queue-select" class="idm-modal-queue-select" title="انتخاب صف IDM">
+              <option value="queue" ${cachedSettings.defaultQueue === 'queue' ? 'selected' : ''}>${t.queue_main}</option>
+              <option value="immediate" ${cachedSettings.defaultQueue === 'immediate' ? 'selected' : ''}>${t.queue_immediate}</option>
+              <option value="scheduler" ${cachedSettings.defaultQueue === 'scheduler' ? 'selected' : ''}>${t.queue_scheduler}</option>
+            </select>
             <button class="idm-btn idm-btn-primary" id="idm-btn-send-queue">
               <span>🚀 ${t.modal_btn_queue}</span>
             </button>
@@ -770,7 +886,25 @@
     const updateCount = () => {
       const itemCheckboxes = overlay.querySelectorAll('.idm-item-checkbox');
       const checkedCount = Array.from(itemCheckboxes).filter((c) => c.checked).length;
-      countBadge.textContent = t.modal_count(checkedCount, itemCheckboxes.length);
+
+      let totalBytes = 0;
+      let hasSizes = false;
+      itemCheckboxes.forEach((cb) => {
+        if (cb.checked) {
+          const u = decodeURIComponent(cb.getAttribute('data-url'));
+          if (itemSizeCache.has(u)) {
+            totalBytes += itemSizeCache.get(u);
+            hasSizes = true;
+          }
+        }
+      });
+
+      if (hasSizes && totalBytes > 0) {
+        countBadge.textContent = t.modal_count_with_size(checkedCount, itemCheckboxes.length, formatFileSize(totalBytes));
+      } else {
+        countBadge.textContent = t.modal_count(checkedCount, itemCheckboxes.length);
+      }
+
       sendBtn.disabled = checkedCount === 0;
       copyModalBtn.disabled = checkedCount === 0;
       txtModalBtn.disabled = checkedCount === 0;
@@ -786,6 +920,32 @@
     };
 
     bindItemCheckboxEvents();
+
+    // Async size preview fetcher
+    const fetchSizesForItems = (list) => {
+      if (cachedSettings.previewFileSize === false) return;
+      list.forEach((item) => {
+        if (item.isSub || itemSizeCache.has(item.url)) return;
+        chrome.runtime.sendMessage({ action: 'getFileSize', url: item.url }, (res) => {
+          if (res && res.success && res.size) {
+            itemSizeCache.set(item.url, res.size);
+            const cb = overlay.querySelector(`[data-url="${encodeURIComponent(item.url)}"]`);
+            if (cb) {
+              const label = cb.parentElement ? cb.parentElement.querySelector('.idm-item-title') : null;
+              if (label && !label.querySelector('.idm-badge-size')) {
+                const sBadge = document.createElement('span');
+                sBadge.className = 'idm-item-badge idm-badge-size';
+                sBadge.textContent = formatFileSize(res.size);
+                label.appendChild(sBadge);
+              }
+            }
+            updateCount();
+          }
+        });
+      });
+    };
+
+    fetchSizesForItems(currentItems);
 
     selectAllCheck.addEventListener('change', () => {
       const itemCheckboxes = overlay.querySelectorAll('.idm-item-checkbox');
@@ -836,6 +996,7 @@
         itemsContainer.innerHTML = renderItemsHtml(filtered);
         bindItemCheckboxEvents();
         updateCount();
+        fetchSizesForItems(filtered);
 
         const subElem = overlay.querySelector('#idm-modal-sub');
         if (subElem) {
@@ -881,6 +1042,9 @@
 
       if (selectedItems.length === 0) return;
 
+      const queueSelect = overlay.querySelector('#idm-modal-queue-select');
+      const queueMode = queueSelect ? queueSelect.value : (cachedSettings.defaultQueue || 'queue');
+
       sendBtn.disabled = true;
       sendBtn.innerHTML = `<span>⏳ ${t.modal_btn_sending}</span>`;
 
@@ -888,7 +1052,8 @@
         {
           action: 'batchDownloadWithIDM',
           items: selectedItems,
-          urls: selectedItems.map((it) => it.url)
+          urls: selectedItems.map((it) => it.url),
+          queueMode
         },
         (res) => {
           closeModal();
@@ -1383,8 +1548,168 @@
     stickyBtn = createStickyButton(extractEpisodesFromApi, t.serial_btn_float);
   };
 
+  // Floating Video Player Downloader
+  const initFloatingVideoDownloader = () => {
+    const attachFloatBarToVideo = (video) => {
+      if (!cachedSettings.enabled || cachedSettings.floatingVideoBar === false) return;
+      if (!video || video.dataset.idmFloatDismissed === 'true') return;
+      if (video.offsetWidth > 0 && video.offsetWidth < 160) return;
+      if (video.offsetHeight > 0 && video.offsetHeight < 100) return;
+
+      const container = video.parentElement || video;
+      if (container.querySelector('.idm-video-float-bar')) {
+        const existingBar = container.querySelector('.idm-video-float-bar');
+        existingBar.classList.remove('idm-float-hidden');
+        return;
+      }
+
+      const cs = window.getComputedStyle(container);
+      if (cs.position === 'static') {
+        container.style.position = 'relative';
+      }
+
+      const t = getT();
+      const bar = document.createElement('div');
+      bar.className = 'idm-video-float-bar';
+      bar.setAttribute('title', t.floating_player_title);
+
+      bar.innerHTML = `
+        <button class="idm-video-float-btn" type="button">
+          <span class="idm-video-float-icon">🎬</span>
+          <span>${t.floating_player_btn}</span>
+        </button>
+        <button class="idm-video-float-close" type="button" title="✕">✕</button>
+      `;
+
+      const downloadBtn = bar.querySelector('.idm-video-float-btn');
+      const closeBtn = bar.querySelector('.idm-video-float-close');
+
+      let hideTimer = null;
+      const resetHideTimer = () => {
+        if (hideTimer) clearTimeout(hideTimer);
+        bar.classList.remove('idm-float-hidden');
+        hideTimer = setTimeout(() => {
+          bar.classList.add('idm-float-hidden');
+        }, 4000);
+      };
+
+      container.addEventListener('mouseenter', () => {
+        bar.classList.remove('idm-float-hidden');
+      });
+
+      container.addEventListener('mouseleave', () => {
+        bar.classList.add('idm-float-hidden');
+      });
+
+      container.addEventListener('mousemove', resetHideTimer);
+
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        video.dataset.idmFloatDismissed = 'true';
+        bar.remove();
+      });
+
+      downloadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        let videoSrc = video.currentSrc || video.src;
+        if (!videoSrc || videoSrc.startsWith('blob:')) {
+          const sources = Array.from(video.querySelectorAll('source'));
+          const validSource = sources.find((s) => s.src && !s.src.startsWith('blob:'));
+          if (validSource) {
+            videoSrc = validSource.src;
+          } else {
+            const dataUrl = video.getAttribute('data-src') || video.getAttribute('data-url');
+            if (dataUrl && !dataUrl.startsWith('blob:')) {
+              videoSrc = dataUrl;
+            }
+          }
+        }
+
+        if (!videoSrc) {
+          showToast(t.toast_batch_error, 'error');
+          return;
+        }
+
+        const rawTitle = (document.title || 'Video')
+          .replace(/[\\/:*?"<>|]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 100);
+
+        let ext = 'mp4';
+        try {
+          const u = new URL(videoSrc, window.location.href);
+          const match = u.pathname.match(/\.(mp4|mkv|webm|mov|flv|m4v|avi|ts|m3u8)/i);
+          if (match) ext = match[1].toLowerCase();
+        } catch {}
+
+        const filename = `${rawTitle}.${ext}`;
+        const isInstant = isInstantKeyPressed(e);
+        const toQueue = isInstant || (cachedSettings.defaultQueue === 'queue');
+        const startScheduler = cachedSettings.defaultQueue === 'scheduler';
+
+        chrome.runtime.sendMessage(
+          {
+            action: 'downloadWithIDM',
+            url: videoSrc,
+            filename: filename,
+            toQueue: toQueue,
+            startScheduler: startScheduler,
+            silent: isInstant
+          },
+          (res) => {
+            if (chrome.runtime.lastError) {
+              showToast(t.toast_bridge_error, 'error');
+              return;
+            }
+            if (res && res.success) {
+              showToast(isInstant ? t.toast_instant_sent : t.toast_sent_success, 'success');
+            } else {
+              showToast(res?.error || t.toast_bridge_error, 'error');
+            }
+          }
+        );
+      });
+
+      container.appendChild(bar);
+      resetHideTimer();
+    };
+
+    // Listen for video playback and interaction across all videos
+    document.addEventListener('play', (e) => {
+      if (e.target && e.target.tagName === 'VIDEO') {
+        attachFloatBarToVideo(e.target);
+      }
+    }, true);
+
+    document.addEventListener('playing', (e) => {
+      if (e.target && e.target.tagName === 'VIDEO') {
+        attachFloatBarToVideo(e.target);
+      }
+    }, true);
+
+    document.addEventListener('mouseenter', (e) => {
+      if (e.target && e.target.tagName === 'VIDEO') {
+        attachFloatBarToVideo(e.target);
+      }
+    }, true);
+
+    // Initial check for already playing/loaded videos
+    document.querySelectorAll('video').forEach((vid) => {
+      if (!vid.paused || vid.currentTime > 0) {
+        attachFloatBarToVideo(vid);
+      }
+    });
+  };
+
   // Main Extractor Initializer
   const initMediaBatchExtractor = () => {
+    // Always initialize floating video player bar
+    initFloatingVideoDownloader();
+
     const hostname = window.location.hostname;
     const pathname = window.location.pathname;
 

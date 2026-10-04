@@ -635,3 +635,103 @@
   font-weight: 500;
 }
 
+.idm-badge-size {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  direction: ltr;
+  font-family: inherit;
+}
+
+/* Floating Player Download Bar */
+.idm-video-float-bar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2147483640;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  border-radius: 20px;
+  padding: 4px 6px 4px 12px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Tahoma, sans-serif;
+  font-size: 12px;
+  color: #ffffff;
+  direction: rtl;
+  pointer-events: auto;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.idm-video-float-bar.idm-float-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+
+.idm-video-float-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 12px;
+  transition: color 0.2s ease;
+}
+
+.idm-video-float-btn:hover {
+  color: #34d399;
+}
+
+.idm-video-float-icon {
+  font-size: 14px;
+}
+
+.idm-video-float-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.idm-video-float-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Queue select in Batch Modal footer */
+.idm-modal-queue-select {
+  background: rgba(30, 41, 59, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.idm-modal-queue-select:focus {
+  border-color: #3b82f6;
+}
+

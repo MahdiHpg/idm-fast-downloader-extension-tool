@@ -237,6 +237,7 @@ namespace IdmNativeBridge
             }
 
             // Batch Download Support
+            // Batch Download Support
             if (string.Equals(action, "batchDownload", StringComparison.OrdinalIgnoreCase))
             {
                 var items = ExtractBatchItems(json);
@@ -246,6 +247,7 @@ namespace IdmNativeBridge
                 }
 
                 bool toQueue = ExtractJsonBool(json, "toQueue", true);
+                bool startScheduler = ExtractJsonBool(json, "startScheduler", false);
 
                 try
                 {
@@ -275,7 +277,16 @@ namespace IdmNativeBridge
                         System.Threading.Thread.Sleep(70);
                     }
 
-                    if (toQueue)
+                    if (startScheduler)
+                    {
+                        // Start queue in IDM scheduler
+                        ProcessStartInfo schedPsi = new ProcessStartInfo();
+                        schedPsi.FileName = idmPath;
+                        schedPsi.Arguments = "/s";
+                        schedPsi.UseShellExecute = true;
+                        Process.Start(schedPsi);
+                    }
+                    else if (toQueue)
                     {
                         // Bring IDM forward to view the queued batch
                         ProcessStartInfo showPsi = new ProcessStartInfo();
@@ -299,13 +310,34 @@ namespace IdmNativeBridge
                 return "{\"status\":\"error\",\"message\":\"No URL provided\"}";
             }
 
+            string filename = ExtractJsonValue(json, "filename");
+            bool singleToQueue = ExtractJsonBool(json, "toQueue", false);
+            bool silent = ExtractJsonBool(json, "silent", false);
+
             try
             {
-                // Launch IDMan.exe /d <url>
-                // Without /n switch, IDM automatically opens its download file dialog modal
+                StringBuilder args = new StringBuilder();
+                args.Append("/d \"").Append(url).Append("\"");
+
+                string safeFn = SanitizeFilename(filename);
+                if (!string.IsNullOrEmpty(safeFn))
+                {
+                    args.Append(" /f \"").Append(safeFn).Append("\"");
+                }
+
+                if (singleToQueue)
+                {
+                    args.Append(" /a");
+                }
+
+                if (silent)
+                {
+                    args.Append(" /n");
+                }
+
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = idmPath;
-                psi.Arguments = "/d \"" + url + "\"";
+                psi.Arguments = args.ToString();
                 psi.UseShellExecute = true;
                 Process.Start(psi);
 
