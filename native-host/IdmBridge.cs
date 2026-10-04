@@ -458,20 +458,27 @@ namespace IdmNativeBridge
                     try
                     {
                         string playlistText = "";
-                        using (var wc = new WebClient())
+                        Uri finalUri = null;
+
+                        HttpWebRequest req = (HttpWebRequest)WebRequest.Create(item.Url);
+                        req.AllowAutoRedirect = true;
+                        req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+                        using (var resp = (HttpWebResponse)req.GetResponse())
                         {
-                            wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-                            playlistText = wc.DownloadString(item.Url);
+                            finalUri = resp.ResponseUri;
+                            using (var reader = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                            {
+                                playlistText = reader.ReadToEnd();
+                            }
                         }
 
                         var lines = playlistText.Split('\n');
                         var segUrls = new List<string>();
-                        Uri baseUri = new Uri(item.Url);
                         foreach (var l in lines)
                         {
                             string line = l.Trim();
                             if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
-                            segUrls.Add(new Uri(baseUri, line).AbsoluteUri);
+                            segUrls.Add(new Uri(finalUri, line).AbsoluteUri);
                         }
 
                         if (segUrls.Count == 0) continue;
@@ -501,13 +508,17 @@ namespace IdmNativeBridge
                                             using (var client = new WebClient())
                                             {
                                                 client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+                                                if (finalUri != null)
+                                                {
+                                                    client.Headers[HttpRequestHeader.Referer] = finalUri.AbsoluteUri;
+                                                }
                                                 buffers[b] = client.DownloadData(segUrls[segIndex]);
                                             }
                                         }
                                         catch
                                         {
                                             retries--;
-                                            Thread.Sleep(200);
+                                            Thread.Sleep(250);
                                         }
                                     }
                                 });
@@ -533,9 +544,17 @@ namespace IdmNativeBridge
                             }
                         }
 
-                        if (!cts.IsCancellationRequested)
+                        if (!cts.IsCancellationRequested && downloadedSegs > 0)
                         {
                             lastFinished = outputPath;
+                        }
+                        else if (!cts.IsCancellationRequested && downloadedSegs == 0)
+                        {
+                            this.Invoke((MethodInvoker)(() =>
+                            {
+                                lblStatus.Text = "⚠️ خطا: سرور استریم قطعات این قسمت را ارائه نداد.";
+                            }));
+                            Thread.Sleep(2000);
                         }
                     }
                     catch (Exception ex)
