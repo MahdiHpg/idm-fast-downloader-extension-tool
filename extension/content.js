@@ -80,7 +80,8 @@
       serial_no_episodes: 'هیچ قسمتی برای دانلود پیدا نشد.',
       serial_modal_title: 'دانلود دسته‌ای قسمت‌های سریال و فیلم با IDM',
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} قسمت یافت شد (${linkCount} فایل آماده دانلود)`,
-      serial_filter_apply: 'اعمال فیلتر'
+      serial_filter_apply: 'اعمال فیلتر',
+      modal_drag_hint: 'برای جابجایی کلیک کنید و بکشید'
     },
     en: {
       toast_transferring: 'Sending link to IDM...',
@@ -134,7 +135,8 @@
       serial_no_episodes: 'No episodes found for download.',
       serial_modal_title: 'Batch Download Media & Episodes with IDM',
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} episodes found (${linkCount} files ready for download)`,
-      serial_filter_apply: 'Apply Filter'
+      serial_filter_apply: 'Apply Filter',
+      modal_drag_hint: 'Click and drag to move'
     }
   };
 
@@ -862,7 +864,7 @@
 
     overlay.innerHTML = `
       <div class="idm-batch-modal">
-        <div class="idm-modal-header">
+        <div class="idm-modal-header" title="${t.modal_drag_hint}">
           <div class="idm-modal-title-wrap">
             <span class="idm-modal-title-icon">${filterOptions ? '🎬' : '📥'}</span>
             <div>
@@ -870,7 +872,10 @@
               <div class="idm-modal-subtitle" id="idm-modal-sub">${modalSubtitle}</div>
             </div>
           </div>
-          <button class="idm-modal-close-btn" id="idm-modal-close" title="${t.modal_cancel}">✕</button>
+          <div class="idm-modal-header-actions">
+            <span class="idm-modal-drag-badge" title="${t.modal_drag_hint}">⋮⋮</span>
+            <button class="idm-modal-close-btn" id="idm-modal-close" title="${t.modal_cancel}">✕</button>
+          </div>
         </div>
 
         ${filterBarHtml}
@@ -912,6 +917,129 @@
     `;
 
     document.body.appendChild(overlay);
+
+    // Modal Dragging Logic
+    const modalElem = overlay.querySelector('.idm-batch-modal');
+    const headerElem = overlay.querySelector('.idm-modal-header');
+
+    let isDragging = false;
+    let hasMoved = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasMoved = true;
+      }
+
+      const rect = modalElem.getBoundingClientRect();
+      const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+      const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+
+      const newLeft = Math.max(10, Math.min(maxLeft, initialLeft + dx));
+      const newTop = Math.max(10, Math.min(maxTop, initialTop + dy));
+
+      modalElem.style.left = `${newLeft}px`;
+      modalElem.style.top = `${newTop}px`;
+    };
+
+    const onMouseUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      modalElem.classList.remove('idm-modal-dragging');
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    const onMouseDown = (e) => {
+      if (
+        e.target.closest('#idm-modal-close') ||
+        e.target.closest('button') ||
+        e.target.closest('input') ||
+        e.target.closest('select') ||
+        e.target.closest('a')
+      ) {
+        return;
+      }
+      if (e.button !== 0) return;
+
+      isDragging = true;
+      hasMoved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const rect = modalElem.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      modalElem.style.position = 'fixed';
+      modalElem.style.left = `${initialLeft}px`;
+      modalElem.style.top = `${initialTop}px`;
+      modalElem.style.margin = '0';
+      modalElem.style.transform = 'none';
+      modalElem.classList.add('idm-modal-dragging');
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      e.preventDefault();
+    };
+
+    headerElem.addEventListener('mousedown', onMouseDown);
+
+    // Touch support for tablets/touch devices
+    const onTouchMove = (e) => {
+      if (!isDragging || !e.touches || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+
+      const rect = modalElem.getBoundingClientRect();
+      const maxLeft = Math.max(10, window.innerWidth - rect.width - 10);
+      const maxTop = Math.max(10, window.innerHeight - rect.height - 10);
+
+      const newLeft = Math.max(10, Math.min(maxLeft, initialLeft + dx));
+      const newTop = Math.max(10, Math.min(maxTop, initialTop + dy));
+
+      modalElem.style.left = `${newLeft}px`;
+      modalElem.style.top = `${newTop}px`;
+    };
+
+    const onTouchEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      modalElem.classList.remove('idm-modal-dragging');
+    };
+
+    const onTouchStart = (e) => {
+      if (e.target.closest('#idm-modal-close') || e.target.closest('button')) return;
+      if (!e.touches || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      isDragging = true;
+      hasMoved = false;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      const rect = modalElem.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      modalElem.style.position = 'fixed';
+      modalElem.style.left = `${initialLeft}px`;
+      modalElem.style.top = `${initialTop}px`;
+      modalElem.style.margin = '0';
+      modalElem.classList.add('idm-modal-dragging');
+    };
+
+    headerElem.addEventListener('touchstart', onTouchStart, { passive: true });
+    headerElem.addEventListener('touchmove', onTouchMove, { passive: true });
+    headerElem.addEventListener('touchend', onTouchEnd);
 
     // Modal Interaction Logic
     const selectAllCheck = overlay.querySelector('#idm-select-all');
@@ -1071,12 +1199,18 @@
     }
 
     const closeModal = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
       overlay.remove();
     };
 
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
     overlay.addEventListener('click', (e) => {
+      if (hasMoved) {
+        hasMoved = false;
+        return;
+      }
       if (e.target === overlay) closeModal();
     });
 
@@ -1214,7 +1348,94 @@
       </div>
     `;
 
-    stickyBtn.addEventListener('click', onClickHandler);
+    // Make sticky button draggable
+    let btnDragging = false;
+    let btnMoved = false;
+    let btnStartX = 0;
+    let btnStartY = 0;
+    let btnInitLeft = 0;
+    let btnInitTop = 0;
+
+    const onBtnMouseMove = (e) => {
+      if (!btnDragging) return;
+      const dx = e.clientX - btnStartX;
+      const dy = e.clientY - btnStartY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        btnMoved = true;
+        stickyBtn.style.bottom = 'auto';
+        stickyBtn.style.right = 'auto';
+        stickyBtn.style.left = `${Math.max(10, Math.min(window.innerWidth - stickyBtn.offsetWidth - 10, btnInitLeft + dx))}px`;
+        stickyBtn.style.top = `${Math.max(10, Math.min(window.innerHeight - stickyBtn.offsetHeight - 10, btnInitTop + dy))}px`;
+      }
+    };
+
+    const onBtnMouseUp = () => {
+      if (!btnDragging) return;
+      btnDragging = false;
+      document.removeEventListener('mousemove', onBtnMouseMove);
+      document.removeEventListener('mouseup', onBtnMouseUp);
+    };
+
+    const onBtnMouseDown = (e) => {
+      if (e.button !== 0) return;
+      btnDragging = true;
+      btnMoved = false;
+      btnStartX = e.clientX;
+      btnStartY = e.clientY;
+      const rect = stickyBtn.getBoundingClientRect();
+      btnInitLeft = rect.left;
+      btnInitTop = rect.top;
+
+      document.addEventListener('mousemove', onBtnMouseMove);
+      document.addEventListener('mouseup', onBtnMouseUp);
+    };
+
+    stickyBtn.addEventListener('mousedown', onBtnMouseDown);
+
+    // Touch support for sticky button
+    const onBtnTouchMove = (e) => {
+      if (!btnDragging || !e.touches || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - btnStartX;
+      const dy = touch.clientY - btnStartY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        btnMoved = true;
+        stickyBtn.style.bottom = 'auto';
+        stickyBtn.style.right = 'auto';
+        stickyBtn.style.left = `${Math.max(10, Math.min(window.innerWidth - stickyBtn.offsetWidth - 10, btnInitLeft + dx))}px`;
+        stickyBtn.style.top = `${Math.max(10, Math.min(window.innerHeight - stickyBtn.offsetHeight - 10, btnInitTop + dy))}px`;
+      }
+    };
+
+    const onBtnTouchEnd = () => {
+      btnDragging = false;
+    };
+
+    const onBtnTouchStart = (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      btnDragging = true;
+      btnMoved = false;
+      const touch = e.touches[0];
+      btnStartX = touch.clientX;
+      btnStartY = touch.clientY;
+      const rect = stickyBtn.getBoundingClientRect();
+      btnInitLeft = rect.left;
+      btnInitTop = rect.top;
+    };
+
+    stickyBtn.addEventListener('touchstart', onBtnTouchStart, { passive: true });
+    stickyBtn.addEventListener('touchmove', onBtnTouchMove, { passive: true });
+    stickyBtn.addEventListener('touchend', onBtnTouchEnd);
+
+    stickyBtn.addEventListener('click', (e) => {
+      if (btnMoved) {
+        btnMoved = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      onClickHandler(e);
+    });
 
     if (document.body) {
       document.body.appendChild(stickyBtn);
@@ -1627,6 +1848,7 @@
       bar.setAttribute('title', t.floating_player_title);
 
       bar.innerHTML = `
+        <span class="idm-video-float-grip" title="${t.modal_drag_hint}">⋮⋮</span>
         <button class="idm-video-float-btn" type="button">
           <span class="idm-video-float-icon">🎬</span>
           <span>${t.floating_player_btn}</span>
@@ -1636,6 +1858,46 @@
 
       const downloadBtn = bar.querySelector('.idm-video-float-btn');
       const closeBtn = bar.querySelector('.idm-video-float-close');
+
+      // Make video float bar draggable over video container
+      let barDragging = false;
+      let barStartX = 0;
+      let barStartY = 0;
+      let barInitLeft = 0;
+      let barInitTop = 0;
+
+      const onBarMouseMove = (e) => {
+        if (!barDragging) return;
+        const dx = e.clientX - barStartX;
+        const dy = e.clientY - barStartY;
+        bar.style.right = 'auto';
+        bar.style.left = `${Math.max(4, Math.min(container.clientWidth - bar.offsetWidth - 4, barInitLeft + dx))}px`;
+        bar.style.top = `${Math.max(4, Math.min(container.clientHeight - bar.offsetHeight - 4, barInitTop + dy))}px`;
+      };
+
+      const onBarMouseUp = () => {
+        if (!barDragging) return;
+        barDragging = false;
+        document.removeEventListener('mousemove', onBarMouseMove);
+        document.removeEventListener('mouseup', onBarMouseUp);
+      };
+
+      const onBarMouseDown = (e) => {
+        if (e.target.closest('.idm-video-float-close') || e.target.closest('.idm-video-float-btn')) return;
+        if (e.button !== 0) return;
+        barDragging = true;
+        barStartX = e.clientX;
+        barStartY = e.clientY;
+        const rect = bar.getBoundingClientRect();
+        const parentRect = container.getBoundingClientRect();
+        barInitLeft = rect.left - parentRect.left;
+        barInitTop = rect.top - parentRect.top;
+
+        document.addEventListener('mousemove', onBarMouseMove);
+        document.addEventListener('mouseup', onBarMouseUp);
+      };
+
+      bar.addEventListener('mousedown', onBarMouseDown);
 
       let hideTimer = null;
       const resetHideTimer = () => {

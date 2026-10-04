@@ -176,9 +176,9 @@
   width: 100vw;
   height: 100vh;
   z-index: 2147483647;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,21 +194,57 @@
   background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   color: #f8fafc;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.idm-batch-modal.idm-modal-dragging {
+  opacity: 0.92;
+  box-shadow: 0 35px 70px -10px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(16, 185, 129, 0.45);
+  cursor: grabbing !important;
+  user-select: none;
 }
 
 /* Modal Header */
 .idm-modal-header {
-  padding: 16px 20px;
+  padding: 14px 18px;
   background: #0f172a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  cursor: grab;
+  user-select: none;
+}
+
+.idm-modal-header:active {
+  cursor: grabbing;
+}
+
+.idm-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.idm-modal-drag-badge {
+  font-size: 14px;
+  color: #64748b;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  cursor: grab;
+  line-height: 1;
+}
+
+.idm-modal-header:hover .idm-modal-drag-badge {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .idm-modal-title-wrap {
@@ -658,7 +694,7 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   border-radius: 20px;
-  padding: 4px 6px 4px 12px;
+  padding: 4px 6px 4px 10px;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Tahoma, sans-serif;
   font-size: 12px;
   color: #ffffff;
@@ -667,6 +703,22 @@
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
   opacity: 1;
   transform: translateY(0);
+  cursor: grab;
+  user-select: none;
+}
+
+.idm-video-float-grip {
+  cursor: grab;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+  padding: 0 2px;
+  transition: color 0.2s;
+}
+
+.idm-video-float-bar:hover .idm-video-float-grip {
+  color: #94a3b8;
 }
 
 .idm-video-float-bar.idm-float-hidden {
