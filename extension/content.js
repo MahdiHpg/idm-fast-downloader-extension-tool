@@ -140,6 +140,35 @@
 
   const getT = () => I18N_CONTENT[cachedSettings.language] || I18N_CONTENT.fa;
 
+  // Verify extension context is still active (handles extension reloads/updates)
+  const isExtensionValid = () => {
+    try {
+      return Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+    } catch {
+      return false;
+    }
+  };
+
+  // Safe wrapper for chrome.runtime.sendMessage to completely prevent "Extension context invalidated" errors
+  const safeSendMessage = (message, callback) => {
+    try {
+      if (!isExtensionValid()) {
+        return;
+      }
+      chrome.runtime.sendMessage(message, (res) => {
+        if (chrome.runtime?.lastError) {
+          // Suppress context invalidated note or disconnected port
+          return;
+        }
+        if (typeof callback === 'function') {
+          callback(res);
+        }
+      });
+    } catch {
+      // Ignored: extension reloaded or context destroyed
+    }
+  };
+
   // Check if current page domain is in excluded sites list
   const isCurrentSiteExcluded = () => {
     if (!cachedSettings.excludedSites || !Array.isArray(cachedSettings.excludedSites) || cachedSettings.excludedSites.length === 0) {
@@ -156,7 +185,9 @@
   // Sync settings from storage
   const syncSettings = () => {
     try {
+      if (!isExtensionValid() || !chrome.storage || !chrome.storage.local) return;
       chrome.storage.local.get('settings', (res) => {
+        if (chrome.runtime?.lastError) return;
         if (res && res.settings) {
           cachedSettings = { ...cachedSettings, ...res.settings };
         }
@@ -169,20 +200,23 @@
   syncSettings();
 
   // Listen for storage updates
-  if (chrome.storage && chrome.storage.onChanged) {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === 'local' && changes.settings) {
-        cachedSettings = { ...cachedSettings, ...changes.settings.newValue };
-        if (isCurrentSiteExcluded()) {
-          removeFloatBtn();
-          const stickyMedia = document.getElementById('idm-media-sticky-btn');
-          if (stickyMedia) stickyMedia.remove();
-          const stickySerial = document.getElementById('idm-serial-sticky-btn');
-          if (stickySerial) stickySerial.remove();
-          document.querySelectorAll('.idm-video-float-bar').forEach((b) => b.remove());
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+    try {
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (!isExtensionValid()) return;
+        if (area === 'local' && changes.settings) {
+          cachedSettings = { ...cachedSettings, ...changes.settings.newValue };
+          if (isCurrentSiteExcluded()) {
+            removeFloatBtn();
+            const stickyMedia = document.getElementById('idm-media-sticky-btn');
+            if (stickyMedia) stickyMedia.remove();
+            const stickySerial = document.getElementById('idm-serial-sticky-btn');
+            if (stickySerial) stickySerial.remove();
+            document.querySelectorAll('.idm-video-float-bar').forEach((b) => b.remove());
+          }
         }
-      }
-    });
+      });
+    } catch {}
   }
 
   // Toast Notification UI Element
@@ -221,11 +255,16 @@
   };
 
   // Listen for background messages (like context menu toast feedback)
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action === 'showToast') {
-      showToast(msg.message, msg.status || 'info');
-    }
-  });
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    try {
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (!isExtensionValid()) return;
+        if (msg.action === 'showToast') {
+          showToast(msg.message, msg.status || 'info');
+        }
+      });
+    } catch {}
+  }
 
   // Helper to test if URL is a downloadable file
   const isDownloadableUrl = (urlStr, anchorElem) => {
@@ -282,9 +321,10 @@
   window.addEventListener(
     'keydown',
     (e) => {
+      if (!isExtensionValid()) return;
       const key = cachedSettings.bypassKey;
       if ((key === 'Alt' && e.altKey) || (key === 'Shift' && e.shiftKey) || (key === 'Ctrl' && (e.ctrlKey || e.metaKey))) {
-        chrome.runtime.sendMessage({ action: 'setBypassState', active: true }).catch(() => {});
+        safeSendMessage({ action: 'setBypassState', active: true });
       }
     },
     true
@@ -293,9 +333,10 @@
   window.addEventListener(
     'keyup',
     (e) => {
+      if (!isExtensionValid()) return;
       const key = cachedSettings.bypassKey;
       if ((key === 'Alt' && !e.altKey) || (key === 'Shift' && !e.shiftKey) || (key === 'Ctrl' && !e.ctrlKey && !e.metaKey)) {
-        chrome.runtime.sendMessage({ action: 'setBypassState', active: false }).catch(() => {});
+        safeSendMessage({ action: 'setBypassState', active: false });
       }
     },
     true
@@ -305,7 +346,7 @@
   window.addEventListener(
     'click',
     (event) => {
-      if (!cachedSettings.enabled || !cachedSettings.interceptLinks || isCurrentSiteExcluded()) {
+      if (!cachedSettings.enabled || !cachedSettings.interceptLinks || isCurrentSiteExcluded() || !isExtensionValid()) {
         return;
       }
 
@@ -313,10 +354,10 @@
       if (isBypassKeyPressed(event)) {
         const anchor = event.target.closest('a');
         if (anchor && anchor.href) {
-          chrome.runtime.sendMessage({
+          safeSendMessage({
             action: 'bypassDownload',
             url: anchor.href
-          }).catch(() => {});
+          });
         }
         return;
       }
@@ -340,7 +381,7 @@
         // If instant hotkey is pressed, trigger silent/direct download
         if (isInstantKeyPressed(event)) {
           showToast(t.toast_instant_sent, 'success');
-          chrome.runtime.sendMessage({
+          safeSendMessage({
             action: 'downloadWithIDM',
             url: href,
             referer: window.location.href,
@@ -353,7 +394,7 @@
 
         showToast(t.toast_transferring, 'info');
 
-        chrome.runtime.sendMessage(
+        safeSendMessage(
           {
             action: 'downloadWithIDM',
             url: href,
@@ -361,11 +402,6 @@
             filename: extractedFn
           },
           (res) => {
-            if (chrome.runtime.lastError) {
-              showToast(t.toast_bridge_error, 'error');
-              return;
-            }
-
             if (res && res.success) {
               showToast(t.toast_sent_success, 'success');
             } else {
@@ -948,7 +984,7 @@
       if (cachedSettings.previewFileSize === false) return;
       list.forEach((item) => {
         if (item.isSub || itemSizeCache.has(item.url)) return;
-        chrome.runtime.sendMessage({ action: 'getFileSize', url: item.url }, (res) => {
+        safeSendMessage({ action: 'getFileSize', url: item.url }, (res) => {
           if (res && res.success && res.size) {
             itemSizeCache.set(item.url, res.size);
             const cb = overlay.querySelector(`[data-url="${encodeURIComponent(item.url)}"]`);
@@ -1070,7 +1106,7 @@
       sendBtn.disabled = true;
       sendBtn.innerHTML = `<span>⏳ ${t.modal_btn_sending}</span>`;
 
-      chrome.runtime.sendMessage(
+      safeSendMessage(
         {
           action: 'batchDownloadWithIDM',
           items: selectedItems,
@@ -1079,11 +1115,6 @@
         },
         (res) => {
           closeModal();
-          if (chrome.runtime.lastError) {
-            showToast(t.toast_bridge_error, 'error');
-            return;
-          }
-
           if (res && res.success) {
             showToast(t.toast_batch_success(selectedItems.length), 'success');
           } else {
@@ -1673,7 +1704,7 @@
         const toQueue = isInstant || (cachedSettings.defaultQueue === 'queue');
         const startScheduler = cachedSettings.defaultQueue === 'scheduler';
 
-        chrome.runtime.sendMessage(
+        safeSendMessage(
           {
             action: 'downloadWithIDM',
             url: videoSrc,
@@ -1683,10 +1714,6 @@
             silent: isInstant
           },
           (res) => {
-            if (chrome.runtime.lastError) {
-              showToast(t.toast_bridge_error, 'error');
-              return;
-            }
             if (res && res.success) {
               showToast(isInstant ? t.toast_instant_sent : t.toast_sent_success, 'success');
             } else {
