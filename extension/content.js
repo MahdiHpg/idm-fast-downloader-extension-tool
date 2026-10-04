@@ -80,9 +80,9 @@
       toast_hls_started: (n) => `دانلود مستقیم ${n} استریم در پس‌زمینه آغاز شد (پوشه Downloads)`,
       toast_hls_error: 'خطا در شروع دانلود استریم',
       serial_btn_float_hls: '🎬 استخراج هوشمند قسمت‌ها (IDM)',
-      modal_btn_hls_direct: 'دانلود مستقیم استریم',
-      modal_btn_hls_sending: 'در حال شروع دانلود...',
-      hls_notice: 'ℹ️ این ویدیوها استریم چندقطعه‌ای HLS هستند. می‌توانید آن‌ها را مستقیماً دانلود کنید، به IDM بفرستید یا لینک‌ها را کپی کنید.'
+      modal_btn_hls_direct: 'دانلود مستقیم استریم (پوشه Downloads)',
+      modal_btn_hls_sending: 'در حال شروع دانلود موازی...',
+      hls_notice: 'ℹ️ این ویدیوها استریم آنلاین (HLS) هستند. برنامه تمامی قطعات را با سرعت بالا دانلود کرده و فایل کامل را در پوشه Downloads ذخیره می‌کند.'
     },
     en: {
       toast_transferring: 'Sending link to IDM...',
@@ -138,9 +138,9 @@
       toast_hls_started: (n) => `Direct download of ${n} streams started in Downloads folder`,
       toast_hls_error: 'Error starting HLS stream download',
       serial_btn_float_hls: '🎬 Batch Extract Episodes (IDM)',
-      modal_btn_hls_direct: 'Direct Stream Download',
-      modal_btn_hls_sending: 'Starting download...',
-      hls_notice: 'ℹ️ These files are multi-segment HLS streams. You can download them directly, queue them to IDM, or copy links.'
+      modal_btn_hls_direct: 'Direct Stream Download (Downloads folder)',
+      modal_btn_hls_sending: 'Starting parallel download...',
+      hls_notice: 'ℹ️ These files are online HLS streams. The app downloads all video segments in parallel and saves the complete file to your Downloads folder.'
     }
   };
 
@@ -874,10 +874,11 @@
             <button class="idm-btn idm-btn-success" id="idm-btn-direct-hls" title="${t.modal_btn_hls_direct}">
               <span>⚡ ${t.modal_btn_hls_direct}</span>
             </button>
-            ` : ''}
+            ` : `
             <button class="idm-btn idm-btn-primary" id="idm-btn-send-queue">
               <span>🚀 ${t.modal_btn_queue}</span>
             </button>
+            `}
           </div>
         </div>
       </div>
@@ -1074,7 +1075,7 @@
         countBadge.textContent = t.modal_count(checkedCount, itemCheckboxes.length);
       }
 
-      sendBtn.disabled = checkedCount === 0;
+      if (sendBtn) sendBtn.disabled = checkedCount === 0;
       if (directHlsBtn) directHlsBtn.disabled = checkedCount === 0;
       copyModalBtn.disabled = checkedCount === 0;
       txtModalBtn.disabled = checkedCount === 0;
@@ -1213,31 +1214,33 @@
     });
 
     // Send selected items to IDM
-    sendBtn.addEventListener('click', () => {
-      const selectedItems = getCheckedItems();
+    if (sendBtn) {
+      sendBtn.addEventListener('click', () => {
+        const selectedItems = getCheckedItems();
 
-      if (selectedItems.length === 0) return;
+        if (selectedItems.length === 0) return;
 
-      sendBtn.disabled = true;
-      sendBtn.innerHTML = `<span>⏳ ${t.modal_btn_sending}</span>`;
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = `<span>⏳ ${t.modal_btn_sending}</span>`;
 
-      safeSendMessage(
-        {
-          action: 'batchDownloadWithIDM',
-          items: selectedItems,
-          urls: selectedItems.map((it) => it.url),
-          queueMode: 'queue'
-        },
-        (res) => {
-          closeModal();
-          if (res && res.success) {
-            showToast(t.toast_batch_success(selectedItems.length), 'success');
-          } else {
-            showToast(res?.error || t.toast_batch_error, 'error');
+        safeSendMessage(
+          {
+            action: 'batchDownloadWithIDM',
+            items: selectedItems,
+            urls: selectedItems.map((it) => it.url),
+            queueMode: 'queue'
+          },
+          (res) => {
+            closeModal();
+            if (res && res.success) {
+              showToast(t.toast_batch_success(selectedItems.length), 'success');
+            } else {
+              showToast(res?.error || t.toast_batch_error, 'error');
+            }
           }
-        }
-      );
-    });
+        );
+      });
+    }
 
     if (directHlsBtn) {
       directHlsBtn.addEventListener('click', () => {

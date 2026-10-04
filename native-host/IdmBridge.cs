@@ -262,7 +262,7 @@ namespace IdmNativeBridge
                 {
                     try
                     {
-                        ServicePointManager.DefaultConnectionLimit = 32;
+                        ServicePointManager.DefaultConnectionLimit = 64;
                         try
                         {
                             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
@@ -270,6 +270,7 @@ namespace IdmNativeBridge
                         catch { }
 
                         string saveDir = GetDefaultDownloadPath();
+                        string lastFinishedFile = null;
 
                         foreach (var item in items)
                         {
@@ -308,35 +309,61 @@ namespace IdmNativeBridge
 
                                 if (segUrls.Count == 0) continue;
 
+                                int batchSize = 6;
                                 using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read))
                                 {
-                                    for (int i = 0; i < segUrls.Count; i++)
+                                    for (int i = 0; i < segUrls.Count; i += batchSize)
                                     {
-                                        int retries = 3;
-                                        byte[] data = null;
-                                        while (retries > 0 && data == null)
+                                        int curBatch = Math.Min(batchSize, segUrls.Count - i);
+                                        byte[][] buffers = new byte[curBatch][];
+
+                                        System.Threading.Tasks.Parallel.For(0, curBatch, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = batchSize }, b =>
                                         {
-                                            try
+                                            int segIndex = i + b;
+                                            int retries = 3;
+                                            while (retries > 0 && buffers[b] == null)
                                             {
-                                                using (var client = new WebClient())
+                                                try
                                                 {
-                                                    client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
-                                                    data = client.DownloadData(segUrls[i]);
+                                                    using (var client = new WebClient())
+                                                    {
+                                                        client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+                                                        buffers[b] = client.DownloadData(segUrls[segIndex]);
+                                                    }
+                                                }
+                                                catch
+                                                {
+                                                    retries--;
+                                                    Thread.Sleep(200);
                                                 }
                                             }
-                                            catch
-                                            {
-                                                retries--;
-                                                Thread.Sleep(300);
-                                            }
-                                        }
+                                        });
 
-                                        if (data != null)
+                                        for (int b = 0; b < curBatch; b++)
                                         {
-                                            fs.Write(data, 0, data.Length);
+                                            if (buffers[b] != null)
+                                            {
+                                                fs.Write(buffers[b], 0, buffers[b].Length);
+                                            }
                                         }
                                     }
                                 }
+
+                                lastFinishedFile = outputPath;
+                            }
+                            catch { }
+                        }
+
+                        if (!string.IsNullOrEmpty(lastFinishedFile) && File.Exists(lastFinishedFile))
+                        {
+                            try
+                            {
+                                System.Media.SystemSounds.Asterisk.Play();
+                                ProcessStartInfo explorerPsi = new ProcessStartInfo();
+                                explorerPsi.FileName = "explorer.exe";
+                                explorerPsi.Arguments = "/select,\"" + lastFinishedFile + "\"";
+                                explorerPsi.UseShellExecute = true;
+                                Process.Start(explorerPsi);
                             }
                             catch { }
                         }
