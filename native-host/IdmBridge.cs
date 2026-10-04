@@ -224,6 +224,25 @@ namespace IdmNativeBridge
             return string.IsNullOrEmpty(cleaned) ? null : cleaned;
         }
 
+        static bool HasValidExtension(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            try
+            {
+                string ext = Path.GetExtension(name);
+                if (string.IsNullOrEmpty(ext) || ext.Length < 2 || ext.Length > 6) return false;
+                for (int i = 1; i < ext.Length; i++)
+                {
+                    if (!char.IsLetterOrDigit(ext[i])) return false;
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         class HlsDownloader
         {
             public static string GetDefaultDownloadPath()
@@ -392,7 +411,7 @@ namespace IdmNativeBridge
                         args.Append("/d \"").Append(item.Url).Append("\"");
 
                         string safeFn = SanitizeFilename(item.Filename);
-                        if (!string.IsNullOrEmpty(safeFn))
+                        if (!string.IsNullOrEmpty(safeFn) && HasValidExtension(safeFn))
                         {
                             args.Append(" /f \"").Append(safeFn).Append("\"");
                         }
@@ -453,7 +472,7 @@ namespace IdmNativeBridge
                 args.Append("/d \"").Append(url).Append("\"");
 
                 string safeFn = SanitizeFilename(filename);
-                if (!string.IsNullOrEmpty(safeFn))
+                if (!string.IsNullOrEmpty(safeFn) && HasValidExtension(safeFn))
                 {
                     args.Append(" /f \"").Append(safeFn).Append("\"");
                 }

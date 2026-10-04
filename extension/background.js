@@ -117,7 +117,17 @@ const sendToIDM = async (url, referer = '', filename = '', toQueue = false, sile
   cleanRecentDownloads();
   recentDownloads.set(url, Date.now());
 
-  const finalFilename = filename || extractFilenameFromUrl(url);
+  let finalFilename = '';
+  if (filename && typeof filename === 'string') {
+    const trimmed = filename.trim();
+    if (/\.[a-z0-9]{2,5}$/i.test(trimmed)) {
+      finalFilename = trimmed;
+    }
+  }
+
+  if (!finalFilename) {
+    finalFilename = extractFilenameFromUrl(url);
+  }
 
   return new Promise((resolve) => {
     try {
@@ -293,7 +303,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         let count = 0;
         if (Array.isArray(items) && items.length > 0) {
-          payload.items = items;
+          payload.items = items.map((it) => {
+            let fn = (it.filename || '').trim();
+            if (fn && !/\.[a-z0-9]{2,5}$/i.test(fn)) {
+              fn = extractFilenameFromUrl(it.url);
+            }
+            return {
+              url: it.url,
+              filename: fn
+            };
+          });
           count = items.length;
         } else if (Array.isArray(urls) && urls.length > 0) {
           payload.urls = urls;

@@ -339,7 +339,12 @@
         event.stopPropagation();
 
         const t = getT();
-        const extractedFn = anchor.getAttribute('download') || anchor.title || anchor.textContent?.trim() || '';
+        // Only use explicit download attribute if it has a valid file extension
+        let customFn = '';
+        const dlAttr = (anchor.getAttribute('download') || '').trim();
+        if (dlAttr && /\.[a-z0-9]{2,5}$/i.test(dlAttr)) {
+          customFn = dlAttr;
+        }
 
         // If instant hotkey is pressed, trigger silent/direct download
         if (isInstantKeyPressed(event)) {
@@ -348,7 +353,7 @@
             action: 'downloadWithIDM',
             url: href,
             referer: window.location.href,
-            filename: extractedFn,
+            filename: customFn,
             toQueue: true,
             silent: true
           });
@@ -362,7 +367,7 @@
             action: 'downloadWithIDM',
             url: href,
             referer: window.location.href,
-            filename: extractedFn
+            filename: customFn
           },
           (res) => {
             if (res && res.success) {
