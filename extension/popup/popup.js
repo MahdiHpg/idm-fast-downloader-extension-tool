@@ -67,6 +67,15 @@ const I18N = {
     ext_input_placeholder: 'پسوند جدید (مثلاً: MKV)',
     btn_add: 'افزودن',
     btn_reset_exts: 'بازنشانی به پیش‌فرض',
+    site_active: 'دانلود با IDM در این سایت فعال است',
+    site_excluded: 'دانلود با IDM در این سایت غیرفعال است',
+    btn_disable_site: '🚫 غیرفعال‌سازی در این سایت',
+    btn_enable_site: '✅ فعال‌سازی در این سایت',
+    excluded_sites_title: 'سایت‌های استثنا (غیرفعال)',
+    excluded_sites_sub: 'دانلود با IDM در دامنه‌های زیر کاملاً غیرفعال خواهد بود و توسط خود مرورگر انجام می‌شود.',
+    site_input_placeholder: 'دامنه جدید (مثلاً: youtube.com)',
+    btn_add_site: 'افزودن',
+    site_empty_list: 'هیچ سایتی در لیست استثناها ثبت نشده است.',
     footer_text: 'توسعه یافته برای هماهنگی کامل مرورگرها با IDM'
   },
   en: {
@@ -117,6 +126,15 @@ const I18N = {
     ext_input_placeholder: 'New extension (e.g. MKV)',
     btn_add: 'Add',
     btn_reset_exts: 'Reset to Default',
+    site_active: 'IDM download is active on this site',
+    site_excluded: 'IDM download is disabled on this site',
+    btn_disable_site: '🚫 Disable on this site',
+    btn_enable_site: '✅ Enable on this site',
+    excluded_sites_title: 'Excluded Sites (Blocklist)',
+    excluded_sites_sub: 'IDM downloads are completely disabled on these domains and handled natively by browser.',
+    site_input_placeholder: 'New domain (e.g. youtube.com)',
+    btn_add_site: 'Add',
+    site_empty_list: 'No excluded sites added yet.',
     footer_text: 'Engineered for seamless browser integration with IDM'
   }
 };
@@ -147,6 +165,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const newExtInput = document.getElementById('newExtInput');
   const btnAddExt = document.getElementById('btnAddExt');
   const btnResetExts = document.getElementById('btnResetExts');
+
+  const currentSiteCard = document.getElementById('currentSiteCard');
+  const currentSiteDomain = document.getElementById('currentSiteDomain');
+  const currentSiteBadge = document.getElementById('currentSiteBadge');
+  const btnToggleCurrentSite = document.getElementById('btnToggleCurrentSite');
+  const btnToggleCurrentSiteText = document.getElementById('btnToggleCurrentSiteText');
+
+  const excludedSitesCount = document.getElementById('excludedSitesCount');
+  const excludedSitesContainer = document.getElementById('excludedSitesContainer');
+  const newSiteInput = document.getElementById('newSiteInput');
+  const btnAddSite = document.getElementById('btnAddSite');
 
   let currentSettings = {};
   let currentLang = 'fa';
@@ -187,6 +216,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         elem.setAttribute('title', dict[key]);
       }
     });
+
+    renderCurrentSiteStatus();
+    renderExcludedSitesTags();
   };
 
   // Display version dynamically from manifest
@@ -258,6 +290,116 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // Helper to check if a domain is excluded
+  const isSiteExcluded = (host, list) => {
+    if (!host || !Array.isArray(list) || list.length === 0) return false;
+    const cleanHost = host.toLowerCase().trim().replace(/^www\./, '');
+    return list.some((site) => {
+      const clean = site.toLowerCase().trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '');
+      if (!clean) return false;
+      return cleanHost === clean || cleanHost.endsWith('.' + clean);
+    });
+  };
+
+  let activeTabHostname = '';
+
+  const initActiveTab = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.url && /^https?:\/\//i.test(tab.url)) {
+        activeTabHostname = new URL(tab.url).hostname.toLowerCase().replace(/^www\./, '');
+      }
+    } catch {}
+    renderCurrentSiteStatus();
+  };
+
+  const renderCurrentSiteStatus = () => {
+    if (!currentSiteCard) return;
+    if (!activeTabHostname) {
+      currentSiteCard.style.display = 'none';
+      return;
+    }
+
+    currentSiteCard.style.display = 'block';
+    currentSiteDomain.textContent = activeTabHostname;
+
+    const excluded = isSiteExcluded(activeTabHostname, currentSettings.excludedSites || []);
+    const dict = I18N[currentLang] || I18N.fa;
+
+    if (excluded) {
+      currentSiteBadge.textContent = dict.site_excluded;
+      currentSiteBadge.className = 'site-status-badge excluded';
+      btnToggleCurrentSiteText.textContent = dict.btn_enable_site;
+      btnToggleCurrentSite.className = 'btn-site-toggle active-excluded';
+    } else {
+      currentSiteBadge.textContent = dict.site_active;
+      currentSiteBadge.className = 'site-status-badge';
+      btnToggleCurrentSiteText.textContent = dict.btn_disable_site;
+      btnToggleCurrentSite.className = 'btn-site-toggle';
+    }
+  };
+
+  // Render excluded sites tags
+  const renderExcludedSitesTags = () => {
+    if (!excludedSitesContainer || !excludedSitesCount) return;
+
+    if (!Array.isArray(currentSettings.excludedSites)) {
+      currentSettings.excludedSites = [];
+    }
+
+    const list = currentSettings.excludedSites;
+    excludedSitesCount.textContent = list.length;
+    excludedSitesContainer.innerHTML = '';
+
+    if (list.length === 0) {
+      const dict = I18N[currentLang] || I18N.fa;
+      const emptyNote = document.createElement('span');
+      emptyNote.style.cssText = 'color: #64748b; font-size: 11px; padding: 4px;';
+      emptyNote.textContent = dict.site_empty_list;
+      excludedSitesContainer.appendChild(emptyNote);
+      return;
+    }
+
+    list.forEach((site) => {
+      const tag = document.createElement('span');
+      tag.className = 'ext-tag';
+      tag.textContent = site;
+
+      const btnRemove = document.createElement('button');
+      btnRemove.className = 'btn-remove-tag';
+      btnRemove.innerHTML = '&times;';
+      btnRemove.title = `حذف ${site}`;
+      btnRemove.addEventListener('click', async () => {
+        currentSettings.excludedSites = currentSettings.excludedSites.filter((s) => s !== site);
+        await saveSettings();
+        renderExcludedSitesTags();
+        renderCurrentSiteStatus();
+      });
+
+      tag.appendChild(btnRemove);
+      excludedSitesContainer.appendChild(tag);
+    });
+  };
+
+  const addExcludedSite = async () => {
+    if (!newSiteInput) return;
+    const rawVal = newSiteInput.value.trim().toLowerCase();
+    const clean = rawVal.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '').trim();
+    if (!clean) return;
+
+    if (!Array.isArray(currentSettings.excludedSites)) {
+      currentSettings.excludedSites = [];
+    }
+
+    if (!currentSettings.excludedSites.includes(clean)) {
+      currentSettings.excludedSites.push(clean);
+      await saveSettings();
+      newSiteInput.value = '';
+      renderExcludedSitesTags();
+      renderCurrentSiteStatus();
+    }
+  };
+
   // Load settings from storage
   const loadSettings = async () => {
     return new Promise((resolve) => {
@@ -281,7 +423,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           currentSettings.extensions = [...DEFAULT_EXTENSIONS];
         }
 
+        if (!currentSettings.excludedSites || !Array.isArray(currentSettings.excludedSites)) {
+          currentSettings.excludedSites = [];
+        }
+
         renderTags();
+        renderExcludedSitesTags();
+        renderCurrentSiteStatus();
         resolve();
       });
     });
@@ -389,10 +537,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTags();
   });
 
+  // Current Site Toggle
+  if (btnToggleCurrentSite) {
+    btnToggleCurrentSite.addEventListener('click', async () => {
+      if (!activeTabHostname) return;
+      if (!Array.isArray(currentSettings.excludedSites)) {
+        currentSettings.excludedSites = [];
+      }
+
+      const excluded = isSiteExcluded(activeTabHostname, currentSettings.excludedSites);
+      if (excluded) {
+        currentSettings.excludedSites = currentSettings.excludedSites.filter((site) => {
+          const clean = site.toLowerCase().trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '');
+          return !(activeTabHostname === clean || activeTabHostname.endsWith('.' + clean));
+        });
+      } else {
+        if (!currentSettings.excludedSites.includes(activeTabHostname)) {
+          currentSettings.excludedSites.push(activeTabHostname);
+        }
+      }
+
+      await saveSettings();
+      renderCurrentSiteStatus();
+      renderExcludedSitesTags();
+    });
+  }
+
+  // Add excluded site
+  if (btnAddSite) {
+    btnAddSite.addEventListener('click', addExcludedSite);
+  }
+
+  if (newSiteInput) {
+    newSiteInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addExcludedSite();
+      }
+    });
+  }
+
   // Refresh connection
   btnRefresh.addEventListener('click', checkConnection);
 
   // Initial load
   await loadSettings();
+  await initActiveTab();
   await checkConnection();
 });

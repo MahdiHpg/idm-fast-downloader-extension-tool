@@ -17,6 +17,7 @@
     previewFileSize: true,
     defaultQueue: 'queue',
     language: 'fa',
+    excludedSites: [],
     extensions: [
       'ZIP', 'RAR', '7Z', 'TAR', 'GZ', 'BZ2', 'ISO', 'IMG', 'BIN', 'DMG', 'PKG',
       'EXE', 'MSI', 'APK', 'APPX', 'TORRENT',
@@ -139,6 +140,19 @@
 
   const getT = () => I18N_CONTENT[cachedSettings.language] || I18N_CONTENT.fa;
 
+  // Check if current page domain is in excluded sites list
+  const isCurrentSiteExcluded = () => {
+    if (!cachedSettings.excludedSites || !Array.isArray(cachedSettings.excludedSites) || cachedSettings.excludedSites.length === 0) {
+      return false;
+    }
+    const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+    return cachedSettings.excludedSites.some((site) => {
+      const clean = site.toLowerCase().trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '');
+      if (!clean) return false;
+      return currentHost === clean || currentHost.endsWith('.' + clean);
+    });
+  };
+
   // Sync settings from storage
   const syncSettings = () => {
     try {
@@ -159,6 +173,14 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.settings) {
         cachedSettings = { ...cachedSettings, ...changes.settings.newValue };
+        if (isCurrentSiteExcluded()) {
+          removeFloatBtn();
+          const stickyMedia = document.getElementById('idm-media-sticky-btn');
+          if (stickyMedia) stickyMedia.remove();
+          const stickySerial = document.getElementById('idm-serial-sticky-btn');
+          if (stickySerial) stickySerial.remove();
+          document.querySelectorAll('.idm-video-float-bar').forEach((b) => b.remove());
+        }
       }
     });
   }
@@ -283,7 +305,7 @@
   window.addEventListener(
     'click',
     (event) => {
-      if (!cachedSettings.enabled || !cachedSettings.interceptLinks) {
+      if (!cachedSettings.enabled || !cachedSettings.interceptLinks || isCurrentSiteExcluded()) {
         return;
       }
 
@@ -1076,7 +1098,7 @@
   let selectionTimeout = null;
 
   const handleSelection = () => {
-    if (!cachedSettings.enabled) {
+    if (!cachedSettings.enabled || isCurrentSiteExcluded()) {
       removeFloatBtn();
       return;
     }
@@ -1551,7 +1573,7 @@
   // Floating Video Player Downloader
   const initFloatingVideoDownloader = () => {
     const attachFloatBarToVideo = (video) => {
-      if (!cachedSettings.enabled || cachedSettings.floatingVideoBar === false) return;
+      if (!cachedSettings.enabled || cachedSettings.floatingVideoBar === false || isCurrentSiteExcluded()) return;
       if (!video || video.dataset.idmFloatDismissed === 'true') return;
       if (video.offsetWidth > 0 && video.offsetWidth < 160) return;
       if (video.offsetHeight > 0 && video.offsetHeight < 100) return;
@@ -1707,6 +1729,10 @@
 
   // Main Extractor Initializer
   const initMediaBatchExtractor = () => {
+    if (isCurrentSiteExcluded()) {
+      return;
+    }
+
     // Always initialize floating video player bar
     initFloatingVideoDownloader();
 

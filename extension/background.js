@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   defaultQueue: 'queue', // 'queue' | 'immediate' | 'scheduler'
   showToast: true,
   language: 'fa', // 'fa' | 'en'
+  excludedSites: [],
   extensions: [
     'ZIP', 'RAR', '7Z', 'TAR', 'GZ', 'BZ2', 'ISO', 'IMG', 'BIN', 'DMG', 'PKG',
     'EXE', 'MSI', 'APK', 'APPX', 'TORRENT',
@@ -23,6 +24,24 @@ const DEFAULT_SETTINGS = {
     'MP3', 'WAV', 'FLAC', 'AAC', 'OGG', 'M4A', 'WMA',
     'PDF', 'EPUB', 'DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX'
   ]
+};
+
+// Helper to check if a domain or URL is in the excluded sites list
+const isSiteExcluded = (urlOrHostname, excludedSites) => {
+  if (!urlOrHostname || !Array.isArray(excludedSites) || excludedSites.length === 0) return false;
+  let host = urlOrHostname;
+  try {
+    if (urlOrHostname.includes('://')) {
+      host = new URL(urlOrHostname).hostname;
+    }
+  } catch {}
+  host = host.toLowerCase().trim().replace(/^www\./, '');
+
+  return excludedSites.some((site) => {
+    const clean = site.toLowerCase().trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/.*$/, '');
+    if (!clean) return false;
+    return host === clean || host.endsWith('.' + clean);
+  });
 };
 
 // Cache recently handled URLs to prevent duplicate interception loops
@@ -228,6 +247,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       if (message.action === 'downloadWithIDM') {
+        const settings = await getSettings();
+        if (
+          isSiteExcluded(message.url, settings.excludedSites) ||
+          isSiteExcluded(message.referer || sender.tab?.url, settings.excludedSites)
+        ) {
+          sendResponse({ success: false, error: 'این سایت در لیست استثناها قرار دارد و دانلود توسط IDM غیرفعال است' });
+          return;
+        }
+
         const result = await sendToIDM(
           message.url,
           message.referer || sender.tab?.url || '',
@@ -287,6 +315,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       if (message.action === 'batchDownloadWithIDM') {
+        const settings = await getSettings();
+        if (isSiteExcluded(sender.tab?.url, settings.excludedSites)) {
+          sendResponse({ success: false, error: 'این سایت در لیست استثناها قرار دارد و دانلود توسط IDM غیرفعال است' });
+          return;
+        }
+
         const items = message.items;
         const urls = message.urls;
         const queueMode = message.queueMode || 'queue'; // 'queue' | 'immediate' | 'scheduler'
@@ -357,6 +391,15 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
 
     const downloadUrl = downloadItem.finalUrl || downloadItem.url;
     if (!downloadUrl || !/^https?:\/\//i.test(downloadUrl)) {
+      return;
+    }
+
+    // Check if site is excluded by user
+    if (
+      isSiteExcluded(downloadUrl, settings.excludedSites) ||
+      isSiteExcluded(downloadItem.referrer, settings.excludedSites)
+    ) {
+      console.log('[IDM] Download site is excluded by user settings; proceeding with browser download:', downloadUrl);
       return;
     }
 
