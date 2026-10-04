@@ -35,7 +35,7 @@ if (-not $cscExe) {
 }
 
 # Compile
-& $cscExe /nologo /optimize+ /target:exe /out:$exeFile $csFile
+& $cscExe /nologo /optimize+ /target:winexe /r:System.Windows.Forms.dll,System.Drawing.dll /out:$exeFile $csFile
 
 if (-not (Test-Path $exeFile)) {
     Write-Host "Error: Failed to compile idm_bridge.exe" -ForegroundColor Red

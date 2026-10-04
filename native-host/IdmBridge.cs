@@ -6,14 +6,26 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using System.Drawing;
+using System.Windows.Forms;
+using System.Threading.Tasks;
+using System.Media;
 using Microsoft.Win32;
 
 namespace IdmNativeBridge
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] args)
         {
+            if (args != null && args.Length >= 2 && string.Equals(args[0], "--hls-worker", StringComparison.OrdinalIgnoreCase))
+            {
+                string jobPath = args[1];
+                HlsWorker.Run(jobPath);
+                return;
+            }
+
             try
             {
                 using (Stream stdin = Console.OpenStandardInput())
@@ -258,120 +270,322 @@ namespace IdmNativeBridge
 
             public static void StartDownloadJob(List<BatchItem> items)
             {
-                Thread t = new Thread(() =>
+                try
                 {
+                    string tempFile = Path.Combine(Path.GetTempPath(), "hls_job_" + Guid.NewGuid().ToString("N") + ".json");
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("{\"items\":[");
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        if (i > 0) sb.Append(",");
+                        string u = items[i].Url ?? "";
+                        string f = items[i].Filename ?? "";
+                        sb.Append("{\"url\":\"").Append(u.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\",");
+                        sb.Append("\"filename\":\"").Append(f.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\"}");
+                    }
+                    sb.Append("]}");
+                    File.WriteAllText(tempFile, sb.ToString(), Encoding.UTF8);
+
+                    ProcessStartInfo psi = new ProcessStartInfo();
+                    psi.FileName = Process.GetCurrentProcess().MainModule.FileName;
+                    psi.Arguments = "--hls-worker \"" + tempFile + "\"";
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+                catch { }
+            }
+        }
+
+        class HlsWorker
+        {
+            public static void Run(string jobPath)
+            {
+                try
+                {
+                    if (!File.Exists(jobPath)) return;
+                    string json = File.ReadAllText(jobPath, Encoding.UTF8);
+                    var items = Program.ExtractBatchItems(json);
+                    if (items == null || items.Count == 0) return;
+
+                    Application.EnableVisualStyles();
+                    Application.SetCompatibleTextRenderingDefault(false);
+                    Application.Run(new HlsProgressForm(items, jobPath));
+                }
+                catch { }
+            }
+        }
+
+        class HlsProgressForm : Form
+        {
+            private List<BatchItem> items;
+            private string jobFile;
+            private Label lblTitle;
+            private Label lblStatus;
+            private Label lblSpeed;
+            private ProgressBar progressBar;
+            private Button btnCancel;
+            private CancellationTokenSource cts;
+
+            public HlsProgressForm(List<BatchItem> items, string jobFile)
+            {
+                this.items = items;
+                this.jobFile = jobFile;
+                this.cts = new CancellationTokenSource();
+
+                InitializeUi();
+            }
+
+            private void InitializeUi()
+            {
+                this.Text = "دریافت استریم ویدیویی - IDM Fast Downloader";
+                this.Size = new Size(520, 220);
+                this.StartPosition = FormStartPosition.CenterScreen;
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = true;
+                this.TopMost = true;
+                this.BackColor = Color.FromArgb(15, 23, 42); // slate-900
+                this.ForeColor = Color.White;
+                this.RightToLeft = RightToLeft.Yes;
+                this.RightToLeftLayout = true;
+                this.Font = new Font("Tahoma", 9f, FontStyle.Regular);
+
+                lblTitle = new Label
+                {
+                    Text = "در حال اتصال و آماده‌سازی قطعات استریم...",
+                    Location = new Point(20, 16),
+                    Size = new Size(465, 25),
+                    Font = new Font("Tahoma", 9.5f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(56, 189, 248), // sky-400
+                    AutoEllipsis = true
+                };
+                this.Controls.Add(lblTitle);
+
+                lblStatus = new Label
+                {
+                    Text = "در حال تحلیل پلی‌لیست M3U8...",
+                    Location = new Point(20, 46),
+                    Size = new Size(465, 22),
+                    Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
+                    ForeColor = Color.FromArgb(203, 213, 225) // slate-300
+                };
+                this.Controls.Add(lblStatus);
+
+                progressBar = new ProgressBar
+                {
+                    Location = new Point(20, 76),
+                    Size = new Size(465, 26),
+                    Minimum = 0,
+                    Maximum = 100,
+                    Value = 0
+                };
+                this.Controls.Add(progressBar);
+
+                lblSpeed = new Label
+                {
+                    Text = "⚡ خط لوله ۶ اتصال همزمان چندنخی فعال است",
+                    Location = new Point(20, 114),
+                    Size = new Size(340, 22),
+                    Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
+                    ForeColor = Color.FromArgb(52, 211, 153) // emerald-400
+                };
+                this.Controls.Add(lblSpeed);
+
+                btnCancel = new Button
+                {
+                    Text = "انصراف",
+                    Location = new Point(395, 118),
+                    Size = new Size(90, 34),
+                    BackColor = Color.FromArgb(30, 41, 59),
+                    ForeColor = Color.FromArgb(248, 113, 113),
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+                btnCancel.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+                btnCancel.Click += (s, e) =>
+                {
+                    cts.Cancel();
+                    this.Close();
+                };
+                this.Controls.Add(btnCancel);
+
+                this.FormClosing += (s, e) =>
+                {
+                    cts.Cancel();
+                };
+
+                this.Shown += (s, e) =>
+                {
+                    Task.Factory.StartNew(ProcessDownloads, TaskCreationOptions.LongRunning);
+                };
+            }
+
+            private void ProcessDownloads()
+            {
+                ServicePointManager.DefaultConnectionLimit = 64;
+                try
+                {
+                    ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+                }
+                catch { }
+
+                string saveDir = HlsDownloader.GetDefaultDownloadPath();
+                string lastFinished = null;
+
+                for (int fileIndex = 0; fileIndex < items.Count; fileIndex++)
+                {
+                    if (cts.IsCancellationRequested) break;
+
+                    var item = items[fileIndex];
+                    if (string.IsNullOrEmpty(item.Url)) continue;
+
+                    string safeFn = Program.SanitizeFilename(item.Filename);
+                    if (string.IsNullOrEmpty(safeFn)) safeFn = "stream_video_" + DateTime.Now.Ticks + ".ts";
+                    if (!safeFn.EndsWith(".ts", StringComparison.OrdinalIgnoreCase) && !safeFn.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+                    {
+                        safeFn += ".ts";
+                    }
+
+                    string outputPath = Path.Combine(saveDir, safeFn);
+
+                    this.Invoke((MethodInvoker)(() =>
+                    {
+                        lblTitle.Text = string.Format("({0}/{1}) {2}", fileIndex + 1, items.Count, safeFn);
+                        lblStatus.Text = "در حال دریافت و تحلیل پلی‌لیست M3U8...";
+                        progressBar.Value = 0;
+                    }));
+
                     try
                     {
-                        ServicePointManager.DefaultConnectionLimit = 64;
-                        try
+                        string playlistText = "";
+                        using (var wc = new WebClient())
                         {
-                            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
+                            wc.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+                            playlistText = wc.DownloadString(item.Url);
                         }
-                        catch { }
 
-                        string saveDir = GetDefaultDownloadPath();
-                        string lastFinishedFile = null;
-
-                        foreach (var item in items)
+                        var lines = playlistText.Split('\n');
+                        var segUrls = new List<string>();
+                        Uri baseUri = new Uri(item.Url);
+                        foreach (var l in lines)
                         {
-                            if (string.IsNullOrEmpty(item.Url)) continue;
+                            string line = l.Trim();
+                            if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+                            segUrls.Add(new Uri(baseUri, line).AbsoluteUri);
+                        }
 
-                            try
+                        if (segUrls.Count == 0) continue;
+
+                        int totalSegs = segUrls.Count;
+                        int downloadedSegs = 0;
+                        int batchSize = 6;
+
+                        using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                        {
+                            for (int i = 0; i < totalSegs; i += batchSize)
                             {
-                                string safeFn = SanitizeFilename(item.Filename);
-                                if (string.IsNullOrEmpty(safeFn))
-                                {
-                                    safeFn = "stream_video_" + DateTime.Now.Ticks + ".ts";
-                                }
-                                if (!safeFn.EndsWith(".ts", StringComparison.OrdinalIgnoreCase) && !safeFn.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    safeFn += ".ts";
-                                }
+                                if (cts.IsCancellationRequested) break;
 
-                                string outputPath = Path.Combine(saveDir, safeFn);
+                                int curBatch = Math.Min(batchSize, totalSegs - i);
+                                byte[][] buffers = new byte[curBatch][];
 
-                                string playlistText = "";
-                                using (var client = new WebClient())
+                                Parallel.For(0, curBatch, new ParallelOptions { MaxDegreeOfParallelism = batchSize }, b =>
                                 {
-                                    client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-                                    playlistText = client.DownloadString(item.Url);
-                                }
-
-                                var lines = playlistText.Split('\n');
-                                var segUrls = new List<string>();
-                                Uri baseUri = new Uri(item.Url);
-                                foreach (var l in lines)
-                                {
-                                    string line = l.Trim();
-                                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
-                                    segUrls.Add(new Uri(baseUri, line).AbsoluteUri);
-                                }
-
-                                if (segUrls.Count == 0) continue;
-
-                                int batchSize = 6;
-                                using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read))
-                                {
-                                    for (int i = 0; i < segUrls.Count; i += batchSize)
+                                    if (cts.IsCancellationRequested) return;
+                                    int segIndex = i + b;
+                                    int retries = 3;
+                                    while (retries > 0 && buffers[b] == null && !cts.IsCancellationRequested)
                                     {
-                                        int curBatch = Math.Min(batchSize, segUrls.Count - i);
-                                        byte[][] buffers = new byte[curBatch][];
-
-                                        System.Threading.Tasks.Parallel.For(0, curBatch, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = batchSize }, b =>
+                                        try
                                         {
-                                            int segIndex = i + b;
-                                            int retries = 3;
-                                            while (retries > 0 && buffers[b] == null)
+                                            using (var client = new WebClient())
                                             {
-                                                try
-                                                {
-                                                    using (var client = new WebClient())
-                                                    {
-                                                        client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
-                                                        buffers[b] = client.DownloadData(segUrls[segIndex]);
-                                                    }
-                                                }
-                                                catch
-                                                {
-                                                    retries--;
-                                                    Thread.Sleep(200);
-                                                }
-                                            }
-                                        });
-
-                                        for (int b = 0; b < curBatch; b++)
-                                        {
-                                            if (buffers[b] != null)
-                                            {
-                                                fs.Write(buffers[b], 0, buffers[b].Length);
+                                                client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+                                                buffers[b] = client.DownloadData(segUrls[segIndex]);
                                             }
                                         }
+                                        catch
+                                        {
+                                            retries--;
+                                            Thread.Sleep(200);
+                                        }
+                                    }
+                                });
+
+                                if (cts.IsCancellationRequested) break;
+
+                                for (int b = 0; b < curBatch; b++)
+                                {
+                                    if (buffers[b] != null)
+                                    {
+                                        fs.Write(buffers[b], 0, buffers[b].Length);
+                                        downloadedSegs++;
                                     }
                                 }
 
-                                lastFinishedFile = outputPath;
+                                int pct = (int)((downloadedSegs * 100.0) / totalSegs);
+                                this.Invoke((MethodInvoker)(() =>
+                                {
+                                    progressBar.Value = Math.Min(100, pct);
+                                    lblStatus.Text = string.Format("دریافت قطعه {0} از {1} ({2}٪) • فایل {3} از {4}",
+                                        downloadedSegs, totalSegs, pct, fileIndex + 1, items.Count);
+                                }));
                             }
-                            catch { }
                         }
 
-                        if (!string.IsNullOrEmpty(lastFinishedFile) && File.Exists(lastFinishedFile))
+                        if (!cts.IsCancellationRequested)
                         {
-                            try
-                            {
-                                System.Media.SystemSounds.Asterisk.Play();
-                                ProcessStartInfo explorerPsi = new ProcessStartInfo();
-                                explorerPsi.FileName = "explorer.exe";
-                                explorerPsi.Arguments = "/select,\"" + lastFinishedFile + "\"";
-                                explorerPsi.UseShellExecute = true;
-                                Process.Start(explorerPsi);
-                            }
-                            catch { }
+                            lastFinished = outputPath;
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        this.Invoke((MethodInvoker)(() =>
+                        {
+                            lblStatus.Text = "خطا در دریافت این قسمت: " + ex.Message;
+                        }));
+                        Thread.Sleep(1000);
+                    }
+                }
+
+                if (!cts.IsCancellationRequested)
+                {
+                    this.Invoke((MethodInvoker)(() =>
+                    {
+                        progressBar.Value = 100;
+                        lblTitle.Text = "✅ تمام دانلودها با موفقیت پایان یافت!";
+                        lblStatus.Text = "ویدیوها در پوشه Downloads آماده استفاده هستند.";
+                        btnCancel.Text = "بستن";
+                        btnCancel.ForeColor = Color.FromArgb(52, 211, 153);
+                    }));
+
+                    try
+                    {
+                        SystemSounds.Asterisk.Play();
+                    }
                     catch { }
-                });
-                t.IsBackground = true;
-                t.Start();
+
+                    if (!string.IsNullOrEmpty(lastFinished) && File.Exists(lastFinished))
+                    {
+                        try
+                        {
+                            ProcessStartInfo psi = new ProcessStartInfo();
+                            psi.FileName = "explorer.exe";
+                            psi.Arguments = "/select,\"" + lastFinished + "\"";
+                            psi.UseShellExecute = true;
+                            Process.Start(psi);
+                        }
+                        catch { }
+                    }
+
+                    Thread.Sleep(2000);
+                    this.Invoke((MethodInvoker)(() => this.Close()));
+                }
+
+                if (!string.IsNullOrEmpty(jobFile) && File.Exists(jobFile))
+                {
+                    try { File.Delete(jobFile); } catch { }
+                }
             }
         }
 
