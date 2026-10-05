@@ -1483,14 +1483,18 @@
 
     const existing = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
     if (existing) {
-      if (labelText) {
-        const textElem = existing.querySelector('.idm-serial-text');
-        if (textElem) textElem.textContent = labelText;
-        const main = existing.querySelector('.idm-serial-sticky-main') || existing.querySelector('.idm-serial-sticky-inner');
-        if (main) main.title = labelText;
+      if (!existing.querySelector('.idm-serial-sticky-close') || !existing.querySelector('.idm-serial-sticky-main')) {
+        existing.remove();
+      } else {
+        if (labelText) {
+          const textElem = existing.querySelector('.idm-serial-text');
+          if (textElem) textElem.textContent = labelText;
+          const main = existing.querySelector('.idm-serial-sticky-main');
+          if (main) main.title = labelText;
+        }
+        existing._idmOnClick = onClickHandler;
+        return existing;
       }
-      existing._idmOnClick = onClickHandler;
-      return existing;
     }
 
     const t = getT();
@@ -1502,10 +1506,11 @@
     stickyBtn.style.direction = isRtl ? 'rtl' : 'ltr';
     stickyBtn.innerHTML = `
       <div class="idm-serial-sticky-inner">
-        <div class="idm-serial-sticky-main" title="${labelText || t.serial_btn_float}">
+        <div class="idm-serial-sticky-main" role="button" tabindex="0" title="${labelText || t.serial_btn_float}">
           <span class="idm-serial-icon">🎬</span>
           <span class="idm-serial-text">${labelText || t.serial_btn_float}</span>
         </div>
+        <div class="idm-serial-sticky-divider"></div>
         <button type="button" class="idm-serial-sticky-close" title="${t.btn_close_float_tip || 'بستن'}" aria-label="Close">
           <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1544,7 +1549,7 @@
     };
 
     const onBtnMouseDown = (e) => {
-      if (e.target.closest('.idm-serial-sticky-close')) return;
+      if (e.target && e.target.closest && (e.target.closest('.idm-serial-sticky-close') || e.target.closest('.idm-serial-sticky-divider'))) return;
       if (e.button !== 0) return;
       btnDragging = true;
       btnMoved = false;
@@ -1580,7 +1585,7 @@
     };
 
     const onBtnTouchStart = (e) => {
-      if (e.target.closest('.idm-serial-sticky-close')) return;
+      if (e.target && e.target.closest && (e.target.closest('.idm-serial-sticky-close') || e.target.closest('.idm-serial-sticky-divider'))) return;
       if (!e.touches || e.touches.length !== 1) return;
       btnDragging = true;
       btnMoved = false;
@@ -1596,36 +1601,59 @@
     stickyBtn.addEventListener('touchmove', onBtnTouchMove, { passive: true });
     stickyBtn.addEventListener('touchend', onBtnTouchEnd);
 
+    // Safety capture interceptor on stickyBtn: kills any click originating from the close button
+    stickyBtn.addEventListener('click', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.idm-serial-sticky-close')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
+        }
+      }
+    }, true);
+
     // Close button dismiss handler
     const closeBtn = stickyBtn.querySelector('.idm-serial-sticky-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', (e) => {
+    const dismissWidget = (e) => {
+      if (e) {
         e.preventDefault();
         e.stopPropagation();
-        stickyDismissedUrl = window.location.href;
-        stickyBtn.classList.add('idm-sticky-closing');
-        setTimeout(() => {
-          if (stickyBtn.parentNode) {
-            stickyBtn.parentNode.removeChild(stickyBtn);
-          }
-        }, 220);
-      });
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
+        }
+      }
+      stickyDismissedUrl = window.location.href;
+      stickyBtn.classList.add('idm-sticky-closing');
+      setTimeout(() => {
+        if (stickyBtn.parentNode) {
+          stickyBtn.parentNode.removeChild(stickyBtn);
+        }
+      }, 200);
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', dismissWidget);
+      closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+      closeBtn.addEventListener('mouseup', (e) => e.stopPropagation());
+      closeBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+      closeBtn.addEventListener('touchend', (e) => e.stopPropagation());
     }
 
-    stickyBtn.addEventListener('click', (e) => {
-      if (e.target.closest('.idm-serial-sticky-close')) {
-        return;
-      }
-      if (btnMoved) {
-        btnMoved = false;
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      if (typeof stickyBtn._idmOnClick === 'function') {
-        stickyBtn._idmOnClick(e);
-      }
-    });
+    // Main button handler (ONLY triggers on clicking the main text/icon area)
+    const mainBtn = stickyBtn.querySelector('.idm-serial-sticky-main');
+    if (mainBtn) {
+      mainBtn.addEventListener('click', (e) => {
+        if (btnMoved) {
+          btnMoved = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (typeof stickyBtn._idmOnClick === 'function') {
+          stickyBtn._idmOnClick(e);
+        }
+      });
+    }
 
     const attachToDom = () => {
       if (stickyDismissedUrl && stickyDismissedUrl === window.location.href) return;
