@@ -1489,12 +1489,18 @@
       }
     });
 
+    const attachToDom = () => {
+      const parent = document.body || document.documentElement;
+      if (parent && !parent.contains(stickyBtn)) {
+        parent.appendChild(stickyBtn);
+      }
+    };
+
     if (document.body) {
-      document.body.appendChild(stickyBtn);
+      attachToDom();
     } else {
-      window.addEventListener('DOMContentLoaded', () => {
-        document.body.appendChild(stickyBtn);
-      });
+      document.addEventListener('DOMContentLoaded', attachToDom);
+      window.addEventListener('load', attachToDom);
     }
 
     return stickyBtn;
@@ -1661,13 +1667,6 @@
         buttonLabel = t.serial_btn_float_count(scanResult.items.length);
       }
 
-      const existingBtn = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
-      if (existingBtn) {
-        const textElem = existingBtn.querySelector('.idm-serial-text');
-        if (textElem) textElem.textContent = buttonLabel;
-        return;
-      }
-
       createStickyButton(() => {
         // Re-scan live DOM in case tabs or accordion sections were expanded
         const liveResult = scanDocumentForEpisodes();
@@ -1708,11 +1707,11 @@
   // 2. Specialized VOD Streaming API Adapter
   // (For streaming platforms where links are fetched on demand via internal API)
   const initStreamingVodAdapter = (hostname, pathname) => {
-    const match = pathname.match(/\/(?:serial|movie|film)\/(\d+)/i);
+    const match = pathname.match(/\/(?:serial|series|serie|movie|movies|film|films)\/(\d+)/i);
     if (!match) return;
 
     const contentId = match[1];
-    const isMovieUrl = /\/(?:movie|film)\//i.test(pathname);
+    const isMovieUrl = /\/(?:movie|movies|film|films)\//i.test(pathname);
     const t = getT();
 
     // Clean root domain to prevent core.www subdomains
@@ -1724,13 +1723,14 @@
     const extractEpisodesFromApi = async () => {
       const curT = getT();
       const currentPath = window.location.pathname;
-      const curMatch = currentPath.match(/\/(?:serial|movie|film)\/(\d+)/i);
+      const curMatch = currentPath.match(/\/(?:serial|series|serie|movie|movies|film|films)\/(\d+)/i);
       const activeContentId = curMatch ? curMatch[1] : contentId;
-      const activeIsMovie = /\/(?:movie|film)\//i.test(currentPath);
+      const activeIsMovie = /\/(?:movie|movies|film|films)\//i.test(currentPath);
 
-      if (stickyBtn) {
-        stickyBtn.classList.add('idm-serial-loading');
-        const textElem = stickyBtn.querySelector('.idm-serial-text');
+      const btn = stickyBtn || document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
+      if (btn) {
+        btn.classList.add('idm-serial-loading');
+        const textElem = btn.querySelector('.idm-serial-text');
         if (textElem) textElem.textContent = curT.serial_extracting;
       }
       showToast(curT.serial_extracting, 'info');
@@ -1827,7 +1827,7 @@
 
                     const displayTitle = activeIsMovie
                       ? `${moviePersianTitle || safeTitle} (${qStr})`
-                      : (fileName || `${epTitle} (${qStr})`);
+                      : `${epTitle} (${qStr})`;
 
                     allItems.push({
                       url: f.Path,
@@ -1864,15 +1864,18 @@
                       subLang: subLang
                     });
                   }
+                });
+              });
             }
           } catch (err) {
             console.debug(`[IDM] Note: season ${season.id}:`, err);
           }
         }
 
-        if (stickyBtn) {
-          stickyBtn.classList.remove('idm-serial-loading');
-          const textElem = stickyBtn.querySelector('.idm-serial-text');
+        const btnDone = stickyBtn || document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
+        if (btnDone) {
+          btnDone.classList.remove('idm-serial-loading');
+          const textElem = btnDone.querySelector('.idm-serial-text');
           if (textElem) textElem.textContent = activeIsMovie ? curT.movie_btn_float : curT.serial_btn_float;
         }
 
@@ -1892,9 +1895,10 @@
           isMovie: activeIsMovie
         });
       } catch (err) {
-        if (stickyBtn) {
-          stickyBtn.classList.remove('idm-serial-loading');
-          const textElem = stickyBtn.querySelector('.idm-serial-text');
+        const btnErr = stickyBtn || document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
+        if (btnErr) {
+          btnErr.classList.remove('idm-serial-loading');
+          const textElem = btnErr.querySelector('.idm-serial-text');
           if (textElem) textElem.textContent = isMovieUrl ? curT.movie_btn_float : curT.serial_btn_float;
         }
         showToast(curT.toast_bridge_error, 'error');
@@ -2503,22 +2507,26 @@
       };
     }
 
-    // Also observe body mutations with debounce to catch SPA route changes in React/Next.js/Vue
+    // Also observe DOM mutations with debounce to catch SPA route changes in React/Next.js/Vue
     let mutTimer = null;
     const observer = new MutationObserver(() => {
       if (mutTimer) clearTimeout(mutTimer);
       mutTimer = setTimeout(onUrlCheck, 250);
     });
 
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
-    } else {
-      window.addEventListener('DOMContentLoaded', () => {
-        if (document.body) {
-          observer.observe(document.body, { childList: true, subtree: true });
-        }
-      });
+    const target = document.body || document.documentElement;
+    if (target) {
+      observer.observe(target, { childList: true, subtree: true });
     }
+
+    // Capture link clicks across the document to catch client-side routing instantly
+    window.addEventListener('click', (e) => {
+      const link = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (link) {
+        setTimeout(onUrlCheck, 150);
+        setTimeout(onUrlCheck, 500);
+      }
+    }, { capture: true, passive: true });
   };
 
   // Main Extractor Initializer
@@ -2538,7 +2546,7 @@
     // Check if on recognized streaming VOD API platform
     const VOD_API_DOMAIN = atob('Z2FwZmlsbS5pcg==');
     if (hostname.includes(VOD_API_DOMAIN)) {
-      if (/\/(?:serial|movie|film)\/\d+/i.test(pathname)) {
+      if (/\/(?:serial|series|serie|movie|movies|film|films)\/\d+/i.test(pathname)) {
         initStreamingVodAdapter(hostname, pathname);
       } else {
         const existing = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
