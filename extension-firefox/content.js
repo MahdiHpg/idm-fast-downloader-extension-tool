@@ -534,6 +534,24 @@
     return matched;
   };
 
+  // Sanitize and clean media title by removing site branding, domains, and boilerplate prefixes
+  const cleanMediaTitle = (raw) => {
+    if (!raw || typeof raw !== 'string') return '';
+    let str = raw.trim();
+    // Remove domain suffixes like "- domain.com" or "| site.ir"
+    str = str.replace(/[-_|•]\s*[\w.-]+\.(?:ir|com|net|org|co|tv|media|site|club|top|info|fun|link)\b/gi, '');
+    // Remove common Persian site branding
+    str = str.replace(/[-_|•]\s*(?:\.[a-z]{2,}|فیلم|مدیا|دانلود|مووی|تی‌وی|tv|media|movie)\b/gi, '');
+    str = str.replace(/(?:در|از)\s+(?:فیلم|سریال|رسانه|سایت)\b/gi, '');
+    // Remove common download / watch prefixes
+    str = str.replace(/^(?:دانلود\s+(?:و\s+تماشای\s+آنلاین\s+)?(?:رایگان\s+)?(?:کامل\s+)?(?:فیلم|سریال|انیمیشن|مستند|برنامه)?)/i, '');
+    str = str.replace(/^(?:تماشای\s+آنلاین\s+(?:فیلم|سریال|انیمیشن|مستند)?)/i, '');
+    str = str.replace(/^(?:پخش\s+آنلاین\s+(?:فیلم|سریال|انیمیشن|مستند)?)/i, '');
+    str = str.replace(/^[-_:|•\s]+|[-_:|•\s]+$/g, '').trim();
+    str = str.replace(/[\/\\:*?"<>|]/g, '').trim();
+    return str;
+  };
+
   // Attach or update filename parameter in URL for download tools
   const attachFilenameToUrl = (rawUrl, filename) => {
     if (!rawUrl || !filename) return rawUrl;
@@ -604,7 +622,8 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const pageTitle = (document.title || 'links').replace(/[\\/:*?"<>|]/g, '').trim().substring(0, 30);
+    const rawPageTitle = cleanMediaTitle(document.title) || 'download-links';
+    const pageTitle = rawPageTitle.substring(0, 35).trim();
     a.download = `${pageTitle || 'idm-links'}-${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
@@ -935,7 +954,7 @@
           }
           if (!epPrefix || epPrefix.toLowerCase().includes('.srt') || /sub(?:_fa|_en|\.srt)?$/i.test(epPrefix)) {
             epPrefix = isMovie
-              ? (filterOptions?.moviePersianTitle || (document.title || '').split('-')[0].trim() || 'فیلم')
+              ? (filterOptions?.moviePersianTitle || cleanMediaTitle(document.title) || 'فیلم')
               : (item.episodeNum !== null && item.episodeNum !== undefined ? `قسمت ${item.episodeNum}` : 'زیرنویس');
           }
           item.title = `${epPrefix} [زیرنویس ${subLabel}] (${item.filename})`;
@@ -2014,8 +2033,8 @@
           });
           const contentData = await contentRes.json();
           if (contentData && contentData.Result) {
-            moviePersianTitle = (contentData.Result.Title || '').trim();
-            seriesEnglishTitle = (contentData.Result.EnglishBody || '').trim().replace(/[^a-zA-Z0-9_\-\.]/g, '');
+            moviePersianTitle = cleanMediaTitle(contentData.Result.Title || '');
+            seriesEnglishTitle = cleanMediaTitle(contentData.Result.EnglishBody || '').replace(/[^a-zA-Z0-9_\-\.]/g, '');
             if (Array.isArray(contentData.Result.SeasonList)) {
               seasons = contentData.Result.SeasonList.map((s) => ({
                 id: s.SeasonId,
