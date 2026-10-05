@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.4-emerald?style=flat-square" alt="Version 1.8.4">
+  <img src="https://img.shields.io/badge/version-1.8.5-emerald?style=flat-square" alt="Version 1.8.5">
   <img src="https://img.shields.io/badge/Manifest-V3-blue?style=flat-square" alt="Manifest V3">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Platform Windows">
   <img src="https://img.shields.io/badge/Languages-Persian%20%7C%20English-purple?style=flat-square" alt="Bilingual">
@@ -23,13 +23,13 @@
 ## 📌 فهرست مطالب | Table of Contents
 - [فارسی (Persian)](#-فارسی-persian)
   - [داستان ساخت این افزونه](#-داستان-ساخت-این-افزونه)
-  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۷۰)
+  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۸۵)
   - [ساختار فایل‌های پروژه](#-ساختار-فایل‌های-پروژه)
   - [راهنمای نصب سریع و آسان](#-راهنمای-نصب-سریع-و-آسان)
   - [نحوه استفاده از امکانات](#-نحوه-استفاده-از-امکانات)
 - [English](#-english)
   - [About This Project](#-about-this-project)
-  - [Key Features](#-key-features-v170)
+  - [Key Features](#-key-features-v185)
   - [Quick Installation](#-quick-installation)
   - [How to Use](#-how-to-use)
 - [توسعه‌دهنده و سازنده | Author](#-توسعه‌دهنده-و-سازنده--author)
@@ -52,7 +52,7 @@
 
 ---
 
-### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۴)
+### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۵)
 
 - **⚡ رهگیری فوری کلیک (Click Interception):** با کلیک چپ روی هر فایل، مرورگر بدون معطلی دیالوگ تایید و ذخیره رسمی IDM رو باز می‌کنه.
 - **⚡ دانلود مستقیم استریم‌های HLS چندقطعه‌ای (HLS Stream Downloader):** پشتیبانی هوشمند از پرتال‌های استریم آنلاین با استریم‌های HLS (.m3u8). دانلود پس‌زمینه‌ای سگمنت‌ها توسط پل بومی و سرهم‌بندی خودکار آن‌ها در یک فایل واحد کامل با بالاترین کیفیت در پوشه Downloads، یا استخراج تمام قسمت‌ها و کیفیت‌ها (1080p, 720p, 480p) در مدال دسته‌ای.
@@ -119,8 +119,9 @@ idm-fast-downloader/
 
 - **در موزیلا فایرفاکس (Firefox):**
   1. وارد آدرس `about:debugging#/runtime/this-firefox` بشید.
-  2. روی دکمه **Load Temporary Add-on** کلیک کنید.
-  3. فایل `manifest.json` درون پوشه `extension` رو انتخاب کنید.
+  2. روی دکمه **Load Temporary Add-on...** کلیک کنید.
+  3. فایل `manifest.json` درون پوشه **`extension-firefox`** (یا فایل فشرده `idm-fast-downloader-firefox.zip`) رو انتخاب کنید.
+  > 💡 **نکته:** اگر می‌خواهید مستقیماً پوشه اصلی `extension` را لود کنید، کافیست در صفحه تنظیمات پیشرفته فایرفاکس (`about:config`) عبارت `extensions.backgroundServiceWorker.enabled` را جستجو کرده و روی `true` قرار دهید.
 
 ---
 
@@ -152,7 +153,7 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ---
 
-### ✨ Key Features (v1.8.4)
+### ✨ Key Features (v1.8.5)
 
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
 - **⚡ Direct HLS Stream Downloader & Adapter:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Background segment fetching and automatic concatenation into a single complete high-quality video in your Downloads folder via the native bridge, alongside batch episode and quality extraction (1080p, 720p, 480p).
@@ -193,8 +194,9 @@ Because browsers cannot launch Windows executables directly due to sandbox secur
   4. Select the **`extension`** folder from this repository.
 - **For Mozilla Firefox:**
   1. Navigate to `about:debugging#/runtime/this-firefox`.
-  2. Click **Load Temporary Add-on**.
-  3. Select the `manifest.json` file inside the `extension` folder.
+  2. Click **Load Temporary Add-on...**.
+  3. Select the `manifest.json` file inside the **`extension-firefox`** folder (or select `idm-fast-downloader-firefox.zip`).
+  > 💡 **Tip:** To load the main `extension` folder directly in Firefox, navigate to `about:config` and set `extensions.backgroundServiceWorker.enabled` to `true`.
 
 </div>
 

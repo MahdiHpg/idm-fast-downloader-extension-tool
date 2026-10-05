@@ -7,6 +7,8 @@ $exeFile = Join-Path $nativeDir "idm_bridge.exe"
 $chromeJson = Join-Path $nativeDir "com.idm.nativehost.chrome.json"
 $firefoxJson = Join-Path $nativeDir "com.idm.nativehost.firefox.json"
 $extDir = Join-Path $scriptDir "extension"
+$firefoxExtDir = Join-Path $scriptDir "extension-firefox"
+$firefoxZip = Join-Path $scriptDir "idm-fast-downloader-firefox.zip"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "  IDM Fast Downloader - Installer & Host Registration     " -ForegroundColor Green
@@ -43,8 +45,8 @@ if (-not (Test-Path $exeFile)) {
 }
 Write-Host "Success: idm_bridge.exe compiled successfully." -ForegroundColor Green
 
-# 2. Update JSON manifests
-Write-Host "[2/4] Generating Native Messaging manifest files..." -ForegroundColor Yellow
+# 2. Update JSON manifests & Firefox Extension Package
+Write-Host "[2/4] Generating Native Messaging & Firefox extension packages..." -ForegroundColor Yellow
 
 $chromeManifest = @{
     name = "com.idm.nativehost"
@@ -68,7 +70,23 @@ $firefoxManifest = @{
 }
 $firefoxManifest | ConvertTo-Json -Depth 5 | Set-Content -Path $firefoxJson -Encoding UTF8
 
-Write-Host "Success: Manifest files configured with absolute paths." -ForegroundColor Green
+# Sync Firefox-ready extension directory & zip package
+if (Test-Path $firefoxExtDir) {
+    Remove-Item $firefoxExtDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $firefoxExtDir -Force | Out-Null
+Copy-Item "$extDir\*" $firefoxExtDir -Recurse -Force
+
+$ffExtManifest = Get-Content "$firefoxExtDir\manifest.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$ffExtManifest.background = [PSCustomObject]@{ scripts = @("background.js") }
+$ffExtManifest | ConvertTo-Json -Depth 10 | Set-Content "$firefoxExtDir\manifest.json" -Encoding UTF8
+
+if (Test-Path $firefoxZip) {
+    Remove-Item $firefoxZip -Force
+}
+Compress-Archive -Path "$firefoxExtDir\*" -DestinationPath $firefoxZip -Force
+
+Write-Host "Success: Manifests and Firefox package generated." -ForegroundColor Green
 
 # 3. Register Native Messaging Hosts in Windows Registry
 Write-Host "[3/4] Registering in Windows Registry (HKCU)..." -ForegroundColor Yellow
@@ -115,6 +133,10 @@ Write-Host "   - Click 'Load unpacked' and select the extension folder above." -
 Write-Host ""
 Write-Host "3. Mozilla Firefox:" -ForegroundColor White
 Write-Host "   - Open about:debugging#/runtime/this-firefox" -ForegroundColor Gray
-Write-Host "   - Click 'Load Temporary Add-on'" -ForegroundColor Gray
-Write-Host "   - Select the manifest.json inside the extension folder." -ForegroundColor Gray
+Write-Host "   - Click 'Load Temporary Add-on...'" -ForegroundColor Gray
+Write-Host "   - Select either the manifest.json inside:" -ForegroundColor Gray
+Write-Host "     $firefoxExtDir" -ForegroundColor Yellow
+Write-Host "     OR select the zip archive:" -ForegroundColor Gray
+Write-Host "     $firefoxZip" -ForegroundColor Yellow
+Write-Host "   (Tip: In about:config, you can also set 'extensions.backgroundServiceWorker.enabled = true')" -ForegroundColor DarkGray
 Write-Host ""

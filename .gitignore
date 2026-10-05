@@ -1,6 +1,7 @@
 # Windows build and binary outputs
 native-host/idm_bridge.exe
 *.exe
+*.zip
 
 # OS generated files
 Thumbs.db
