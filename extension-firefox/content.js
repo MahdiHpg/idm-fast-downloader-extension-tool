@@ -534,13 +534,29 @@
     return matched;
   };
 
+  // Attach or update filename parameter in URL for download tools
+  const attachFilenameToUrl = (rawUrl, filename) => {
+    if (!rawUrl || !filename) return rawUrl;
+    try {
+      const u = new URL(rawUrl);
+      const pathnameEnd = u.pathname.split('/').pop();
+      if (pathnameEnd === filename) return u.href;
+      u.searchParams.set('name', filename);
+      return u.href;
+    } catch {
+      const sep = rawUrl.includes('?') ? '&' : '?';
+      return `${rawUrl}${sep}name=${encodeURIComponent(filename)}`;
+    }
+  };
+
   // Copy links to clipboard helper
-  const copyLinksToClipboard = (urls) => {
-    if (!urls || urls.length === 0) return;
+  const copyLinksToClipboard = (itemsOrUrls) => {
+    if (!itemsOrUrls || itemsOrUrls.length === 0) return;
     const t = getT();
+    const urls = itemsOrUrls.map((it) => (typeof it === 'string' ? it : it.url));
     const text = urls.join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      showToast(t.toast_copied(urls.length), 'success');
+      showToast(t.toast_copied(itemsOrUrls.length), 'success');
     }).catch(() => {
       // Fallback using textarea
       const ta = document.createElement('textarea');
@@ -551,7 +567,7 @@
       ta.select();
       try {
         document.execCommand('copy');
-        showToast(t.toast_copied(urls.length), 'success');
+        showToast(t.toast_copied(itemsOrUrls.length), 'success');
       } catch {
         showToast(t.toast_copy_error, 'error');
       }
@@ -560,10 +576,30 @@
   };
 
   // Download links as a .txt file helper
-  const exportLinksToTxtFile = (urls) => {
-    if (!urls || urls.length === 0) return;
+  const exportLinksToTxtFile = (itemsOrUrls) => {
+    if (!itemsOrUrls || itemsOrUrls.length === 0) return;
     const t = getT();
-    const text = urls.join('\r\n');
+    const isItems = itemsOrUrls.length > 0 && typeof itemsOrUrls[0] === 'object' && itemsOrUrls[0] !== null;
+
+    let lines = [];
+    if (isItems) {
+      lines.push('# ================================================================');
+      lines.push('# IDM Fast Downloader - Exported Links List');
+      lines.push(`# Total Links: ${itemsOrUrls.length}`);
+      lines.push('# ================================================================');
+      lines.push('');
+      itemsOrUrls.forEach((it, idx) => {
+        const titleStr = it.title || it.filename || `Item ${idx + 1}`;
+        const fnStr = it.filename && !titleStr.includes(it.filename) ? ` - ${it.filename}` : '';
+        lines.push(`# ${idx + 1}. ${titleStr}${fnStr}`);
+        lines.push(it.url);
+        lines.push('');
+      });
+    } else {
+      lines = itemsOrUrls;
+    }
+
+    const text = lines.join('\r\n');
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -574,7 +610,7 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(t.toast_txt_saved(urls.length), 'success');
+    showToast(t.toast_txt_saved(itemsOrUrls.length), 'success');
   };
 
   // Position and display the floating action button
@@ -820,29 +856,92 @@
       return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
     };
 
-    // Subtitle filename synchronization with video filename
+    // Subtitle filename synchronization with video filename + quality
     const syncSubtitleFilenames = (list) => {
-      const videoBaseMap = new Map();
-      list.forEach((item) => {
-        if (!item.isSub && item.filename && item.seasonId !== undefined && item.episodeNum !== null) {
-          const key = `${item.seasonId}_${item.episodeNum}`;
-          const base = item.filename.replace(/\.[a-zA-Z0-9]+$/, '');
-          videoBaseMap.set(key, base);
+      // 1. Get currently selected quality from dropdown if user changed filter
+      const qualitySelect = overlay ? overlay.querySelector('#idm-filter-quality') : null;
+      const selectedQualityVal = qualitySelect && qualitySelect.value !== 'all' ? parseInt(qualitySelect.value, 10) : null;
+
+      // 2. Index video items
+      const videoItems = list.filter((it) => !it.isSub && it.filename);
+
+      // Helper to extract clean base name ensuring quality tag is present
+      const getVideoBase = (vid) => {
+        if (!vid || !vid.filename) return null;
+        let base = vid.filename.replace(/\.[a-zA-Z0-9]+$/, '');
+        const hasQuality = /(?:2160p|4k|1080p|720p|480p|360p)/i.test(base);
+        if (!hasQuality && vid.quality > 0) {
+          const qStr = vid.quality === 2160 ? '4K' : `${vid.quality}p`;
+          base = `${base}_${qStr}`;
+        }
+        return base;
+      };
+
+      // Episode map: key = `${seasonId}_${episodeNum}`
+      const episodeVideoMap = new Map();
+      videoItems.forEach((v) => {
+        if (v.seasonId !== undefined && v.episodeNum !== null && v.episodeNum !== undefined) {
+          const key = `${v.seasonId}_${v.episodeNum}`;
+          const existing = episodeVideoMap.get(key);
+          if (!existing) {
+            episodeVideoMap.set(key, v);
+          } else {
+            if (selectedQualityVal && v.quality === selectedQualityVal) {
+              episodeVideoMap.set(key, v);
+            } else if (selectedQualityVal && existing.quality === selectedQualityVal) {
+              // keep existing
+            } else if ((v.quality || 0) > (existing.quality || 0)) {
+              episodeVideoMap.set(key, v);
+            }
+          }
         }
       });
 
-      // Also detect primary movie video if single movie or non-episodic media
-      const primaryMovieVideo = list.find((item) => !item.isSub && item.filename);
-      const movieBase = primaryMovieVideo ? primaryMovieVideo.filename.replace(/\.[a-zA-Z0-9]+$/, '') : null;
+      // Find primary video for movies or single items
+      let primaryVideo = null;
+      if (selectedQualityVal) {
+        primaryVideo = videoItems.find((v) => v.quality === selectedQualityVal);
+      }
+      if (!primaryVideo && videoItems.length > 0) {
+        primaryVideo = [...videoItems].sort((a, b) => (b.quality || 0) - (a.quality || 0))[0];
+      }
+      const primaryBase = primaryVideo ? getVideoBase(primaryVideo) : null;
 
+      // 3. Synchronize subtitles & update their filenames, URLs, and titles
       list.forEach((item) => {
         if (item.isSub) {
-          const key = item.episodeNum !== null ? `${item.seasonId}_${item.episodeNum}` : null;
-          const videoBase = (key && videoBaseMap.get(key)) || (isMovie ? movieBase : null);
-          if (videoBase) {
+          const key = (item.seasonId !== undefined && item.episodeNum !== null && item.episodeNum !== undefined)
+            ? `${item.seasonId}_${item.episodeNum}`
+            : null;
+
+          const matchedVid = (key && episodeVideoMap.get(key)) || (isMovie ? primaryVideo : null) || primaryVideo;
+          const base = matchedVid ? getVideoBase(matchedVid) : primaryBase;
+
+          if (base) {
             const langSuffix = item.subLang === 'en' ? '.en' : (item.subLang === 'fa' ? '.fa' : '');
-            item.filename = `${videoBase}${langSuffix}.srt`;
+            item.filename = `${base}${langSuffix}.srt`;
           }
+
+          // Attach filename to URL so download managers & tools see it immediately
+          if (item.filename) {
+            item.url = attachFilenameToUrl(item.url, item.filename);
+          }
+
+          // Update item title so the UI immediately reflects the synchronized name and quality
+          const subLabel = item.subLang === 'en' ? 'English' : (item.subLang === 'fa' ? 'فارسی' : 'زیرنویس');
+          let epPrefix = item.epTitle || '';
+          if (!epPrefix && item.title) {
+            epPrefix = item.title.split('[')[0].trim();
+          }
+          if (!epPrefix || epPrefix.toLowerCase().includes('.srt') || /sub(?:_fa|_en|\.srt)?$/i.test(epPrefix)) {
+            epPrefix = isMovie
+              ? (filterOptions?.moviePersianTitle || (document.title || '').split('-')[0].trim() || 'فیلم')
+              : (item.episodeNum !== null && item.episodeNum !== undefined ? `قسمت ${item.episodeNum}` : 'زیرنویس');
+          }
+          item.title = `${epPrefix} [زیرنویس ${subLabel}] (${item.filename})`;
+        } else if (item.filename) {
+          // Also attach filename to video URL if not already present
+          item.url = attachFilenameToUrl(item.url, item.filename);
         }
       });
     };
@@ -1116,7 +1215,9 @@
           const u = decodeURIComponent(cb.getAttribute('data-url'));
           const rawFn = cb.getAttribute('data-filename');
           const fn = rawFn ? decodeURIComponent(rawFn) : null;
-          selected.push({ url: u, filename: fn });
+          const label = cb.parentElement ? cb.parentElement.querySelector('.idm-item-title') : null;
+          const title = label ? label.textContent.replace(/\s+/g, ' ').trim() : fn;
+          selected.push({ url: u, filename: fn, title: title });
         }
       });
       return selected;
@@ -1280,16 +1381,16 @@
 
     // Copy checked links in modal
     copyModalBtn.addEventListener('click', () => {
-      const urls = getCheckedUrls();
-      if (urls.length === 0) return;
-      copyLinksToClipboard(urls);
+      const selected = getCheckedItems();
+      if (selected.length === 0) return;
+      copyLinksToClipboard(selected);
     });
 
     // Export checked links as .txt in modal
     txtModalBtn.addEventListener('click', () => {
-      const urls = getCheckedUrls();
-      if (urls.length === 0) return;
-      exportLinksToTxtFile(urls);
+      const selected = getCheckedItems();
+      if (selected.length === 0) return;
+      exportLinksToTxtFile(selected);
     });
 
     // Send selected items to IDM
@@ -1767,6 +1868,7 @@
         url: fullUrl,
         filename: filename,
         title: filename,
+        epTitle: (a.textContent || a.title || '').trim() || filename,
         seasonId: seasonId,
         episodeNum: epNum,
         quality: quality,
@@ -2023,6 +2125,7 @@
                       url: f.Path,
                       filename: subFileName,
                       title: `${epTitle} [زیرنویس ${subLabel}] (${subFileName})`,
+                      epTitle: epTitle,
                       seasonId: season.id,
                       episodeNum: epNum,
                       quality: 0,
@@ -2059,7 +2162,8 @@
           seasons: seasons,
           qualities: qualities,
           episodeCount: activeIsMovie ? 1 : totalEpisodes,
-          isMovie: activeIsMovie
+          isMovie: activeIsMovie,
+          moviePersianTitle: moviePersianTitle
         });
       } catch (err) {
         const btnErr = stickyBtn || document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
