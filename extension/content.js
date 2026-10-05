@@ -939,7 +939,15 @@
           const base = matchedVid ? getVideoBase(matchedVid) : primaryBase;
 
           if (base) {
-            const langSuffix = item.subLang === 'en' ? '.en' : (item.subLang === 'fa' ? '.fa' : '');
+            let langSuffix = '';
+            if (item.subLang === 'en') {
+              const hasFaSub = list.some((it) => it.isSub && it.subLang === 'fa' && (
+                (key && `${it.seasonId}_${it.episodeNum}` === key) || (!key && !it.seasonId)
+              ));
+              langSuffix = hasFaSub ? '.en' : '';
+            } else if (item.subLang && item.subLang !== 'fa') {
+              langSuffix = `.${item.subLang}`;
+            }
             item.filename = `${base}${langSuffix}.srt`;
           }
 
