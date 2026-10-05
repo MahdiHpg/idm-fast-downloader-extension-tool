@@ -141,6 +141,22 @@
   color: #ffffff;
 }
 
+.idm-float-close-btn {
+  padding: 8px 10px;
+  color: #94a3b8;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[dir="ltr"] .idm-float-close-btn {
+  border-right: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.idm-float-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #f87171 !important;
+}
+
 .idm-float-btn-icon {
   font-size: 13px;
 }
@@ -491,8 +507,8 @@
 .idm-serial-sticky-inner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
+  gap: 8px;
+  padding: 10px 12px 10px 18px;
   background: linear-gradient(135deg, #10b981 0%, #047857 100%);
   color: #ffffff;
   border-radius: 30px;
@@ -501,6 +517,57 @@
   box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.5), 0 6px 12px -3px rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.25);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[dir="ltr"] .idm-serial-sticky-inner {
+  padding: 10px 18px 10px 12px;
+}
+
+.idm-serial-sticky-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.idm-serial-sticky-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  padding: 0;
+  margin-inline-start: 4px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  flex-shrink: 0;
+}
+
+.idm-serial-sticky-close:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+}
+
+.idm-serial-sticky-close:active {
+  transform: scale(0.9);
+}
+
+.idm-serial-sticky-close svg {
+  display: block;
+  pointer-events: none;
+}
+
+.idm-sticky-closing {
+  animation: idm-slide-down-fade 0.22s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+  pointer-events: none;
 }
 
 #idm-media-sticky-btn:hover .idm-serial-sticky-inner,
@@ -527,6 +594,10 @@
   pointer-events: none;
 }
 
+.idm-serial-loading .idm-serial-sticky-close {
+  display: none;
+}
+
 .idm-serial-loading .idm-serial-icon {
   animation: idm-spin 1s infinite linear;
 }
@@ -539,6 +610,17 @@
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes idm-slide-down-fade {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(25px) scale(0.85);
   }
 }
 
