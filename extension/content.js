@@ -829,7 +829,9 @@
           } else {
             tagsHtml += `<span class="idm-item-badge idm-badge-original">${t.badge_original}</span>`;
           }
-          if (itemSizeCache.has(item.url)) {
+          if (item.size && item.size > 0) {
+            tagsHtml += `<span class="idm-item-badge idm-badge-size">${formatFileSize(item.size)}</span>`;
+          } else if (itemSizeCache.has(item.url)) {
             tagsHtml += `<span class="idm-item-badge idm-badge-size">${formatFileSize(itemSizeCache.get(item.url))}</span>`;
           }
         }
@@ -1085,7 +1087,11 @@
       itemCheckboxes.forEach((cb) => {
         if (cb.checked) {
           const u = decodeURIComponent(cb.getAttribute('data-url'));
-          if (itemSizeCache.has(u)) {
+          const it = currentItems.find((x) => x.url === u);
+          if (it && it.size && it.size > 0) {
+            totalBytes += it.size;
+            hasSizes = true;
+          } else if (itemSizeCache.has(u)) {
             totalBytes += itemSizeCache.get(u);
             hasSizes = true;
           }
@@ -1119,7 +1125,7 @@
     const fetchSizesForItems = (list) => {
       if (cachedSettings.previewFileSize === false) return;
       list.forEach((item) => {
-        if (item.isSub || itemSizeCache.has(item.url)) return;
+        if (item.isSub || (item.size && item.size > 0) || itemSizeCache.has(item.url)) return;
         safeSendMessage({ action: 'getFileSize', url: item.url }, (res) => {
           if (res && res.success && res.size) {
             itemSizeCache.set(item.url, res.size);
@@ -1367,13 +1373,23 @@
   // Helper to create and attach the sticky action button
   const createStickyButton = (onClickHandler, labelText) => {
     const existing = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
-    if (existing) return existing;
+    if (existing) {
+      if (labelText) {
+        const textElem = existing.querySelector('.idm-serial-text');
+        if (textElem) textElem.textContent = labelText;
+        const inner = existing.querySelector('.idm-serial-sticky-inner');
+        if (inner) inner.title = labelText;
+      }
+      existing._idmOnClick = onClickHandler;
+      return existing;
+    }
 
     const t = getT();
     const isRtl = cachedSettings.language !== 'en';
 
     const stickyBtn = document.createElement('div');
     stickyBtn.id = 'idm-media-sticky-btn';
+    stickyBtn._idmOnClick = onClickHandler;
     stickyBtn.style.direction = isRtl ? 'rtl' : 'ltr';
     stickyBtn.innerHTML = `
       <div class="idm-serial-sticky-inner" title="${labelText || t.serial_btn_float}">
@@ -1468,7 +1484,9 @@
         e.stopPropagation();
         return;
       }
-      onClickHandler(e);
+      if (typeof stickyBtn._idmOnClick === 'function') {
+        stickyBtn._idmOnClick(e);
+      }
     });
 
     if (document.body) {
@@ -1720,12 +1738,14 @@
       try {
         let seasons = [];
         let seriesEnglishTitle = '';
+        let moviePersianTitle = '';
         try {
           const contentRes = await fetch(`${apiBase}/GetContent?Id=${activeContentId}`, {
             headers: { 'SourceEnvironment': 'Website' }
           });
           const contentData = await contentRes.json();
           if (contentData && contentData.Result) {
+            moviePersianTitle = (contentData.Result.Title || '').trim();
             seriesEnglishTitle = (contentData.Result.EnglishBody || '').trim().replace(/[^a-zA-Z0-9_\-\.]/g, '');
             if (Array.isArray(contentData.Result.SeasonList)) {
               seasons = contentData.Result.SeasonList.map((s) => ({
@@ -1749,6 +1769,8 @@
           }
         }
 
+        const safeTitle = (seriesEnglishTitle || moviePersianTitle || (activeIsMovie ? 'Movie' : 'Episode')).replace(/[/\\?%*:|"<>]/g, '_');
+
         const allItems = [];
         let totalEpisodes = 0;
 
@@ -1766,7 +1788,7 @@
 
               attachments.forEach((att, epIdx) => {
                 const epNum = activeIsMovie ? null : epIdx + 1;
-                const epTitle = att.Title || (activeIsMovie ? (seriesEnglishTitle || 'فیلم') : `${season.title} - قسمت ${epNum}`);
+                const epTitle = att.Title || (activeIsMovie ? (moviePersianTitle || safeTitle) : `${season.title} - قسمت ${epNum}`);
                 const sPad = String(season.id).padStart(2, '0');
                 const ePad = epNum !== null ? String(epNum).padStart(2, '0') : '';
                 const files = att.Files || [];
@@ -1777,7 +1799,8 @@
                   if (f.Type === 9) {
                     const width = f.Width || 0;
                     let quality = 720;
-                    if (width >= 1920) quality = 1080;
+                    if (width >= 2560 || width >= 3840) quality = 2160;
+                    else if (width >= 1920) quality = 1080;
                     else if (width >= 1280) quality = 720;
                     else if (width >= 800) quality = 480;
                     else quality = 360;
@@ -1793,24 +1816,30 @@
                     const isDubbedRegex = /(?:^|[^a-zA-Z0-9])(?:dub|dubbed|duble|dooble|farsi[._-]?dub|fa[._-]?dub|persian[._-]?dub)(?:$|[^a-zA-Z0-9])|دوبله/i;
                     const isDubbed = Boolean(att.IsDubbed) || isDubbedRegex.test(checkStr);
 
+                    const qStr = quality === 2160 ? '4K' : `${quality}p`;
+
                     if (!fileName) {
-                      const prefix = seriesEnglishTitle || (activeIsMovie ? 'Movie' : 'Episode');
                       const dubTag = isDubbed ? '-DUB' : '';
                       fileName = activeIsMovie
-                        ? `${prefix}${dubTag}_${quality}p.mp4`
-                        : `${prefix}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
+                        ? `${safeTitle}${dubTag}_${qStr}.mp4`
+                        : `${safeTitle}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
                     }
+
+                    const displayTitle = activeIsMovie
+                      ? `${moviePersianTitle || safeTitle} (${qStr})`
+                      : (fileName || `${epTitle} (${qStr})`);
 
                     allItems.push({
                       url: f.Path,
                       filename: fileName,
-                      title: fileName || `${epTitle} (${quality}p)`,
+                      title: displayTitle,
                       seasonId: season.id,
                       episodeNum: epNum,
                       quality: quality,
-                      badge: `${quality}p`,
+                      badge: qStr,
                       isDubbed: isDubbed,
-                      isSub: false
+                      isSub: false,
+                      size: f.Size || 0
                     });
                   }
 
@@ -1819,10 +1848,9 @@
                     if (f.Path.includes('sub_en') || f.Path.includes('en.srt')) subLang = 'en';
                     const subLabel = subLang === 'fa' ? 'فارسی' : 'English';
 
-                    const prefix = seriesEnglishTitle || (activeIsMovie ? 'Movie' : 'Episode');
                     const subFileName = activeIsMovie
-                      ? `${prefix}-sub_${subLang}.srt`
-                      : `${prefix}-S${sPad}E${ePad}-sub_${subLang}.srt`;
+                      ? `${safeTitle}-sub_${subLang}.srt`
+                      : `${safeTitle}-S${sPad}E${ePad}-sub_${subLang}.srt`;
 
                     allItems.push({
                       url: f.Path,
@@ -1836,8 +1864,6 @@
                       subLang: subLang
                     });
                   }
-                });
-              });
             }
           } catch (err) {
             console.debug(`[IDM] Note: season ${season.id}:`, err);
@@ -2442,11 +2468,66 @@
     });
   };
 
+  // SPA Navigation listener (intercept pushState, replaceState, popstate, and hashchange)
+  let spaWatcherStarted = false;
+  const startSpaWatcherOnce = (onNavigate) => {
+    if (spaWatcherStarted) return;
+    spaWatcherStarted = true;
+
+    let lastHref = window.location.href;
+    const onUrlCheck = () => {
+      if (window.location.href !== lastHref) {
+        lastHref = window.location.href;
+        onNavigate();
+      }
+    };
+
+    window.addEventListener('popstate', onUrlCheck);
+    window.addEventListener('hashchange', onUrlCheck);
+
+    const origPush = history.pushState;
+    if (origPush) {
+      history.pushState = function (...args) {
+        const ret = origPush.apply(this, args);
+        setTimeout(onUrlCheck, 100);
+        return ret;
+      };
+    }
+
+    const origReplace = history.replaceState;
+    if (origReplace) {
+      history.replaceState = function (...args) {
+        const ret = origReplace.apply(this, args);
+        setTimeout(onUrlCheck, 100);
+        return ret;
+      };
+    }
+
+    // Also observe body mutations with debounce to catch SPA route changes in React/Next.js/Vue
+    let mutTimer = null;
+    const observer = new MutationObserver(() => {
+      if (mutTimer) clearTimeout(mutTimer);
+      mutTimer = setTimeout(onUrlCheck, 250);
+    });
+
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      window.addEventListener('DOMContentLoaded', () => {
+        if (document.body) {
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+      });
+    }
+  };
+
   // Main Extractor Initializer
   const initMediaBatchExtractor = () => {
     if (isCurrentSiteExcluded()) {
       return;
     }
+
+    startSpaWatcherOnce(initMediaBatchExtractor);
 
     // Always initialize floating video player bar
     initFloatingVideoDownloader();
@@ -2456,8 +2537,13 @@
 
     // Check if on recognized streaming VOD API platform
     const VOD_API_DOMAIN = atob('Z2FwZmlsbS5pcg==');
-    if (hostname.includes(VOD_API_DOMAIN) && /\/serial\/\d+/i.test(pathname)) {
-      initStreamingVodAdapter(hostname, pathname);
+    if (hostname.includes(VOD_API_DOMAIN)) {
+      if (/\/(?:serial|movie|film)\/\d+/i.test(pathname)) {
+        initStreamingVodAdapter(hostname, pathname);
+      } else {
+        const existing = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
+        if (existing) existing.remove();
+      }
       return;
     }
 

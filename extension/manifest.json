@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "IDM Fast Downloader - دانلود با IDM",
-  "version": "1.8.6",
+  "version": "1.8.7",
   "description": "رهگیری خودکار و هوشمند لینک‌های دانلود و باز کردن مستقیم پنجره دیالوگ دانلود IDM در تمام مرورگرها",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvKomc9VNZSdcGEzCK57GLYJ1T6Uu8YPZzeOrkik2q9qic6zcZn6coxFsdoFuG/7GWRbrZCtTfp01pqCN77myNL4vU3eXxflT1il82D4u0dEp17bgiv7fdaJd5KJw7OTaLVlD9k5SFv01GQ3gsLuIB6Zn+QPnI5w3MnwaBi3SaXFFnZlAWFw0GyL3sgTCcdgPW0O73ssn7GzO1Vyv27TqgfF4WuJvf0UIn1LoomwcdyzKHdqcw/EHUpmtlDaRr3cdpBqAnzBhwnF2WlUdoVIGmhemqPE+9m23qR1eugjT5a4Zl1rvKy0E+W2yEm5HWRXePZQlrd4qF4OJYNWN0e4jNwIDAQAB",
   "browser_specific_settings": {
