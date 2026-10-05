@@ -884,11 +884,13 @@
       // 2. Index video items
       const videoItems = list.filter((it) => !it.isSub && it.filename);
 
-      // Helper to extract clean base name ensuring quality tag is present
+      // Helper to extract clean base name ensuring quality tag is present without duplicates
       const getVideoBase = (vid) => {
         if (!vid || !vid.filename) return null;
         let base = vid.filename.replace(/\.[a-zA-Z0-9]+$/, '');
-        const hasQuality = /(?:2160p|4k|1080p|720p|480p|360p)/i.test(base);
+        // Clean any duplicate quality suffixes (e.g. _480_480p -> _480)
+        base = base.replace(/([_-](?:2160p?|4k|1080p?|720p?|480p?|360p?))[_-](?:2160p?|4k|1080p?|720p?|480p?|360p?)$/i, '$1');
+        const hasQuality = /(?:2160p?|4k|1080p?|720p?|480p?|360p?)/i.test(base);
         if (!hasQuality && vid.quality > 0) {
           const qStr = vid.quality === 2160 ? '4K' : `${vid.quality}p`;
           base = `${base}_${qStr}`;
@@ -1721,19 +1723,7 @@
     stickyBtn.addEventListener('touchmove', onBtnTouchMove, { passive: true });
     stickyBtn.addEventListener('touchend', onBtnTouchEnd);
 
-    // Safety capture interceptor on stickyBtn: kills any click originating from the close button
-    stickyBtn.addEventListener('click', (e) => {
-      if (e.target && e.target.closest && e.target.closest('.idm-serial-sticky-close')) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (typeof e.stopImmediatePropagation === 'function') {
-          e.stopImmediatePropagation();
-        }
-      }
-    }, true);
-
     // Close button dismiss handler
-    const closeBtn = stickyBtn.querySelector('.idm-serial-sticky-close');
     const dismissWidget = (e) => {
       if (e) {
         e.preventDefault();
@@ -1745,18 +1735,29 @@
       stickyDismissedUrl = window.location.href;
       stickyBtn.classList.add('idm-sticky-closing');
       setTimeout(() => {
-        if (stickyBtn.parentNode) {
+        if (stickyBtn && stickyBtn.parentNode) {
           stickyBtn.parentNode.removeChild(stickyBtn);
         }
       }, 200);
     };
 
+    // Safety capture interceptor on stickyBtn: intercepts and dismisses immediately if close button is clicked
+    stickyBtn.addEventListener('click', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.idm-serial-sticky-close')) {
+        dismissWidget(e);
+      }
+    }, true);
+
+    const closeBtn = stickyBtn.querySelector('.idm-serial-sticky-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', dismissWidget);
       closeBtn.addEventListener('mousedown', (e) => e.stopPropagation());
       closeBtn.addEventListener('mouseup', (e) => e.stopPropagation());
       closeBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
-      closeBtn.addEventListener('touchend', (e) => e.stopPropagation());
+      closeBtn.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+        dismissWidget(e);
+      });
     }
 
     // Main button handler (ONLY triggers on clicking the main text/icon area)
@@ -2110,7 +2111,7 @@
                       const dubTag = isDubbed ? '-DUB' : '';
                       fileName = activeIsMovie
                         ? `${safeTitle}${dubTag}_${qStr}.mp4`
-                        : `${safeTitle}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
+                        : `${safeTitle}-S${sPad}E${ePad}${dubTag}_${qStr}.mp4`;
                     }
 
                     const displayTitle = activeIsMovie

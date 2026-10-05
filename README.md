@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.13-emerald?style=flat-square" alt="Version 1.8.13">
+  <img src="https://img.shields.io/badge/version-1.8.14-emerald?style=flat-square" alt="Version 1.8.14">
   <img src="https://img.shields.io/badge/Manifest-V3-blue?style=flat-square" alt="Manifest V3">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Platform Windows">
   <img src="https://img.shields.io/badge/Languages-Persian%20%7C%20English-purple?style=flat-square" alt="Bilingual">
@@ -87,7 +87,7 @@ idm-fast-downloader/
 │   ├── background.js                # سرویس ورکر پس‌زمینه و رهگیری هوشمند
 │   ├── content.js                   # اسکریپت رهگیری کلیک‌ها و پنل شناور سلکت
 │   ├── content.css                  # استایل نوتیفیکیشن‌ها و مدال دانلود دسته‌ای
-│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.13)
+│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.14)
 ├── native-host/                     # پل ارتباطی بومی ویندوز
 │   ├── IdmBridge.cs                 # سورس C# پل ارتباطی بر بستر استاندارد Stdio
 │   ├── com.idm.nativehost.chrome.json
@@ -156,7 +156,7 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ---
 
-### ✨ Key Features (v1.8.13)
+### ✨ Key Features (v1.8.14)
 
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
 - **⚡ Direct HLS Stream Downloader & Custom Folder Picker:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Pick any destination folder on your PC with a native Windows folder dialog, download segments in parallel with multi-threading, and automatically merge them into a single high-quality video file directly in your target folder.
