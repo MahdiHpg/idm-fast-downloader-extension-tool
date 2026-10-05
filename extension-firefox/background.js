@@ -364,6 +364,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      if (message.action === 'pickFolder') {
+        const payload = {
+          action: 'pickFolder',
+          initialPath: message.initialPath || ''
+        };
+
+        const result = await new Promise((resolve) => {
+          try {
+            chrome.runtime.sendNativeMessage(
+              NATIVE_HOST_NAME,
+              payload,
+              (response) => {
+                if (chrome.runtime.lastError) {
+                  resolve({ success: false, error: chrome.runtime.lastError.message });
+                  return;
+                }
+                if (response && response.status === 'ok') {
+                  resolve({ success: true, path: response.path });
+                } else if (response && response.status === 'cancel') {
+                  resolve({ success: false, canceled: true });
+                } else {
+                  resolve({ success: false, error: response?.message || 'خطا در انتخاب پوشه' });
+                }
+              }
+            );
+          } catch (err) {
+            resolve({ success: false, error: err.message });
+          }
+        });
+
+        sendResponse(result);
+        return;
+      }
+
       if (message.action === 'batchDownloadHls') {
         const settings = await getSettings();
         if (isSiteExcluded(sender.tab?.url, settings.excludedSites)) {
@@ -374,7 +408,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const items = message.items || [];
         const payload = {
           action: 'batchHlsDownload',
-          items: items
+          items: items,
+          saveDir: message.saveDir || ''
         };
 
         const result = await new Promise((resolve) => {
@@ -413,7 +448,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const payload = {
           action: 'downloadHls',
           url: message.url,
-          filename: message.filename
+          filename: message.filename,
+          saveDir: message.saveDir || ''
         };
 
         const result = await new Promise((resolve) => {

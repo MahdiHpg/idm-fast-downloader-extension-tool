@@ -268,13 +268,20 @@ namespace IdmNativeBridge
                 return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             }
 
-            public static void StartDownloadJob(List<BatchItem> items)
+            public static void StartDownloadJob(List<BatchItem> items, string saveDir = null)
             {
                 try
                 {
+                    string targetDir = saveDir;
+                    if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir))
+                    {
+                        targetDir = GetDefaultDownloadPath();
+                    }
+
                     string tempFile = Path.Combine(Path.GetTempPath(), "hls_job_" + Guid.NewGuid().ToString("N") + ".json");
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("{\"items\":[");
+                    sb.Append("{\"saveDir\":\"").Append(targetDir.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append("\",");
+                    sb.Append("\"items\":[");
                     for (int i = 0; i < items.Count; i++)
                     {
                         if (i > 0) sb.Append(",");
@@ -307,9 +314,15 @@ namespace IdmNativeBridge
                     var items = Program.ExtractBatchItems(json);
                     if (items == null || items.Count == 0) return;
 
+                    string saveDir = Program.ExtractJsonValue(json, "saveDir");
+                    if (string.IsNullOrEmpty(saveDir) || !Directory.Exists(saveDir))
+                    {
+                        saveDir = HlsDownloader.GetDefaultDownloadPath();
+                    }
+
                     Application.EnableVisualStyles();
                     Application.SetCompatibleTextRenderingDefault(false);
-                    Application.Run(new HlsProgressForm(items, jobPath));
+                    Application.Run(new HlsProgressForm(items, jobPath, saveDir));
                 }
                 catch { }
             }
@@ -319,18 +332,35 @@ namespace IdmNativeBridge
         {
             private List<BatchItem> items;
             private string jobFile;
+            private string saveDir;
             private Label lblTitle;
             private Label lblStatus;
             private Label lblSpeed;
+            private Label lblFolder;
             private ProgressBar progressBar;
             private Button btnCancel;
             private CancellationTokenSource cts;
 
-            public HlsProgressForm(List<BatchItem> items, string jobFile)
+            public HlsProgressForm(List<BatchItem> items, string jobFile, string customSaveDir = null)
             {
                 this.items = items;
                 this.jobFile = jobFile;
                 this.cts = new CancellationTokenSource();
+                try
+                {
+                    if (!string.IsNullOrEmpty(customSaveDir) && Directory.Exists(customSaveDir))
+                    {
+                        this.saveDir = customSaveDir;
+                    }
+                    else
+                    {
+                        this.saveDir = HlsDownloader.GetDefaultDownloadPath();
+                    }
+                }
+                catch
+                {
+                    this.saveDir = HlsDownloader.GetDefaultDownloadPath();
+                }
 
                 InitializeUi();
             }
@@ -338,7 +368,7 @@ namespace IdmNativeBridge
             private void InitializeUi()
             {
                 this.Text = "دریافت استریم ویدیویی - IDM Fast Downloader";
-                this.Size = new Size(520, 220);
+                this.Size = new Size(540, 245);
                 this.StartPosition = FormStartPosition.CenterScreen;
                 this.FormBorderStyle = FormBorderStyle.FixedDialog;
                 this.MaximizeBox = false;
@@ -353,8 +383,8 @@ namespace IdmNativeBridge
                 lblTitle = new Label
                 {
                     Text = "در حال اتصال و آماده‌سازی قطعات استریم...",
-                    Location = new Point(20, 16),
-                    Size = new Size(465, 25),
+                    Location = new Point(20, 14),
+                    Size = new Size(485, 24),
                     Font = new Font("Tahoma", 9.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(56, 189, 248), // sky-400
                     AutoEllipsis = true
@@ -364,8 +394,8 @@ namespace IdmNativeBridge
                 lblStatus = new Label
                 {
                     Text = "در حال تحلیل پلی‌لیست M3U8...",
-                    Location = new Point(20, 46),
-                    Size = new Size(465, 22),
+                    Location = new Point(20, 42),
+                    Size = new Size(485, 20),
                     Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(203, 213, 225) // slate-300
                 };
@@ -373,8 +403,8 @@ namespace IdmNativeBridge
 
                 progressBar = new ProgressBar
                 {
-                    Location = new Point(20, 76),
-                    Size = new Size(465, 26),
+                    Location = new Point(20, 68),
+                    Size = new Size(485, 24),
                     Minimum = 0,
                     Maximum = 100,
                     Value = 0
@@ -384,17 +414,28 @@ namespace IdmNativeBridge
                 lblSpeed = new Label
                 {
                     Text = "⚡ خط لوله ۶ اتصال همزمان چندنخی فعال است",
-                    Location = new Point(20, 114),
-                    Size = new Size(340, 22),
+                    Location = new Point(20, 100),
+                    Size = new Size(360, 20),
                     Font = new Font("Tahoma", 8.5f, FontStyle.Regular),
                     ForeColor = Color.FromArgb(52, 211, 153) // emerald-400
                 };
                 this.Controls.Add(lblSpeed);
 
+                lblFolder = new Label
+                {
+                    Text = "📁 پوشه ذخیره: " + saveDir,
+                    Location = new Point(20, 126),
+                    Size = new Size(485, 20),
+                    Font = new Font("Tahoma", 8.25f, FontStyle.Regular),
+                    ForeColor = Color.FromArgb(148, 163, 184), // slate-400
+                    AutoEllipsis = true
+                };
+                this.Controls.Add(lblFolder);
+
                 btnCancel = new Button
                 {
                     Text = "انصراف",
-                    Location = new Point(395, 118),
+                    Location = new Point(415, 158),
                     Size = new Size(90, 34),
                     BackColor = Color.FromArgb(30, 41, 59),
                     ForeColor = Color.FromArgb(248, 113, 113),
@@ -430,6 +471,21 @@ namespace IdmNativeBridge
                 catch { }
 
                 string saveDir = HlsDownloader.GetDefaultDownloadPath();
+                if (!string.IsNullOrEmpty(this.saveDir))
+                {
+                    try
+                    {
+                        if (!Directory.Exists(this.saveDir))
+                        {
+                            Directory.CreateDirectory(this.saveDir);
+                        }
+                        if (Directory.Exists(this.saveDir))
+                        {
+                            saveDir = this.saveDir;
+                        }
+                    }
+                    catch { }
+                }
                 string lastFinished = null;
 
                 for (int fileIndex = 0; fileIndex < items.Count; fileIndex++)
@@ -573,7 +629,7 @@ namespace IdmNativeBridge
                     {
                         progressBar.Value = 100;
                         lblTitle.Text = "✅ تمام دانلودها با موفقیت پایان یافت!";
-                        lblStatus.Text = "ویدیوها در پوشه Downloads آماده استفاده هستند.";
+                        lblStatus.Text = "ویدیوها در پوشه انتخابی با موفقیت ذخیره شدند.";
                         btnCancel.Text = "بستن";
                         btnCancel.ForeColor = Color.FromArgb(52, 211, 153);
                     }));
@@ -622,6 +678,58 @@ namespace IdmNativeBridge
                 return "{\"status\":\"ok\",\"action\":\"pong\",\"idmPath\":\"" + idmPath.Replace("\\", "\\\\") + "\"}";
             }
 
+            // Folder Browser Picker Dialog (STA Thread)
+            if (string.Equals(action, "pickFolder", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(action, "selectFolder", StringComparison.OrdinalIgnoreCase))
+            {
+                string selectedPath = null;
+                Thread t = new Thread(() =>
+                {
+                    using (FolderBrowserDialog fbd = new FolderBrowserDialog())
+                    {
+                        fbd.Description = "پوشه مورد نظر برای ذخیره استریم‌ها و ویدیوها را انتخاب کنید:";
+                        fbd.ShowNewFolderButton = true;
+                        string initial = ExtractJsonValue(json, "initialPath");
+                        if (!string.IsNullOrEmpty(initial) && Directory.Exists(initial))
+                        {
+                            fbd.SelectedPath = initial;
+                        }
+                        else
+                        {
+                            fbd.SelectedPath = HlsDownloader.GetDefaultDownloadPath();
+                        }
+
+                        Form dummy = new Form
+                        {
+                            TopMost = true,
+                            Size = new Size(1, 1),
+                            StartPosition = FormStartPosition.CenterScreen,
+                            ShowInTaskbar = false,
+                            Opacity = 0
+                        };
+                        dummy.Show();
+                        dummy.BringToFront();
+                        if (fbd.ShowDialog(dummy) == DialogResult.OK)
+                        {
+                            selectedPath = fbd.SelectedPath;
+                        }
+                        dummy.Dispose();
+                    }
+                });
+                t.SetApartmentState(ApartmentState.STA);
+                t.Start();
+                t.Join();
+
+                if (!string.IsNullOrEmpty(selectedPath))
+                {
+                    return "{\"status\":\"ok\",\"path\":\"" + selectedPath.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}";
+                }
+                else
+                {
+                    return "{\"status\":\"cancel\"}";
+                }
+            }
+
             // Direct HLS Stream Download Support
             if (string.Equals(action, "batchHlsDownload", StringComparison.OrdinalIgnoreCase))
             {
@@ -631,7 +739,10 @@ namespace IdmNativeBridge
                     return "{\"status\":\"error\",\"message\":\"No URLs provided in batch list\"}";
                 }
 
-                HlsDownloader.StartDownloadJob(hlsItems);
+                string saveDir = ExtractJsonValue(json, "saveDir");
+                if (string.IsNullOrEmpty(saveDir)) saveDir = ExtractJsonValue(json, "downloadPath");
+
+                HlsDownloader.StartDownloadJob(hlsItems, saveDir);
                 return "{\"status\":\"ok\",\"action\":\"batchHlsDownload\",\"count\":" + hlsItems.Count + "}";
             }
 
@@ -639,13 +750,16 @@ namespace IdmNativeBridge
             {
                 string hlsUrl = ExtractJsonValue(json, "url");
                 string hlsFn = ExtractJsonValue(json, "filename");
+                string saveDir = ExtractJsonValue(json, "saveDir");
+                if (string.IsNullOrEmpty(saveDir)) saveDir = ExtractJsonValue(json, "downloadPath");
+
                 if (string.IsNullOrEmpty(hlsUrl))
                 {
                     return "{\"status\":\"error\",\"message\":\"No URL provided\"}";
                 }
 
                 var list = new List<BatchItem> { new BatchItem { Url = hlsUrl, Filename = hlsFn } };
-                HlsDownloader.StartDownloadJob(list);
+                HlsDownloader.StartDownloadJob(list, saveDir);
                 return "{\"status\":\"ok\",\"action\":\"downloadHls\",\"url\":\"" + hlsUrl.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}";
             }
 

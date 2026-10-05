@@ -81,12 +81,18 @@
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} قسمت یافت شد (${linkCount} فایل آماده دانلود)`,
       serial_filter_apply: 'اعمال فیلتر',
       modal_drag_hint: 'برای جابجایی کلیک کنید و بکشید',
-      toast_hls_started: (n) => `دانلود مستقیم ${n} استریم در پس‌زمینه آغاز شد (پوشه Downloads)`,
+      toast_hls_started: (n) => `دانلود مستقیم ${n} استریم در پس‌زمینه آغاز شد`,
       toast_hls_error: 'خطا در شروع دانلود استریم',
       serial_btn_float_hls: '🎬 استخراج هوشمند قسمت‌ها (IDM)',
-      modal_btn_hls_direct: 'دانلود مستقیم استریم (پوشه Downloads)',
+      modal_btn_hls_direct: 'دانلود مستقیم استریم به پوشه انتخابی',
       modal_btn_hls_sending: 'در حال شروع دانلود موازی...',
-      hls_notice: 'ℹ️ این ویدیوها استریم آنلاین (HLS) هستند. برنامه تمامی قطعات را با سرعت بالا دانلود کرده و فایل کامل را در پوشه Downloads ذخیره می‌کند.'
+      hls_save_folder: 'پوشه ذخیره',
+      hls_default_folder: 'پوشه پیش‌فرض Downloads ویندوز',
+      hls_browse_btn: 'تغییر پوشه...',
+      hls_browse_tip: 'انتخاب پوشه دلخواه در ویندوز جهت ذخیره استریم‌ها',
+      hls_folder_tip: 'مسیر ذخیره‌سازی ویدیوهای این استریم در سیستم شما',
+      toast_folder_selected: (p) => `پوشه ذخیره تنظیم شد: ${p}`,
+      hls_notice: 'ℹ️ این ویدیوها استریم آنلاین (HLS) هستند. برنامه تمامی قطعات را با سرعت بالا دانلود کرده و فایل کامل را در پوشه انتخابی ذخیره می‌کند.'
     },
     en: {
       toast_transferring: 'Sending link to IDM...',
@@ -143,12 +149,18 @@
       serial_modal_subtitle: (epCount, linkCount) => `${epCount} episodes found (${linkCount} files ready for download)`,
       serial_filter_apply: 'Apply Filter',
       modal_drag_hint: 'Click and drag to move',
-      toast_hls_started: (n) => `Direct download of ${n} streams started in Downloads folder`,
+      toast_hls_started: (n) => `Direct download of ${n} streams started in background`,
       toast_hls_error: 'Error starting HLS stream download',
       serial_btn_float_hls: '🎬 Batch Extract Episodes (IDM)',
-      modal_btn_hls_direct: 'Direct Stream Download (Downloads folder)',
+      modal_btn_hls_direct: 'Direct Stream Download to Target Folder',
       modal_btn_hls_sending: 'Starting parallel download...',
-      hls_notice: 'ℹ️ These files are online HLS streams. The app downloads all video segments in parallel and saves the complete file to your Downloads folder.'
+      hls_save_folder: 'Save folder',
+      hls_default_folder: 'Default Windows Downloads folder',
+      hls_browse_btn: 'Change folder...',
+      hls_browse_tip: 'Select custom folder in Windows to save streams',
+      hls_folder_tip: 'Destination folder for this stream download on your PC',
+      toast_folder_selected: (p) => `Save folder set to: ${p}`,
+      hls_notice: 'ℹ️ These files are online HLS streams. The app downloads all video segments in parallel and saves the complete file to your chosen folder.'
     }
   };
 
@@ -198,15 +210,19 @@
 
   let currentHlsActiveStream = null;
   let triggerVideoCheck = null;
+  let cachedHlsFolder = '';
 
   // Sync settings from storage
   const syncSettings = () => {
     try {
       if (!isExtensionValid() || !chrome.storage || !chrome.storage.local) return;
-      chrome.storage.local.get('settings', (res) => {
+      chrome.storage.local.get(['settings', 'hlsSaveDir'], (res) => {
         if (chrome.runtime?.lastError) return;
         if (res && res.settings) {
           cachedSettings = { ...cachedSettings, ...res.settings };
+        }
+        if (res && res.hlsSaveDir) {
+          cachedHlsFolder = res.hlsSaveDir;
         }
       });
     } catch {
@@ -221,15 +237,20 @@
     try {
       chrome.storage.onChanged.addListener((changes, area) => {
         if (!isExtensionValid()) return;
-        if (area === 'local' && changes.settings) {
-          cachedSettings = { ...cachedSettings, ...changes.settings.newValue };
-          if (isCurrentSiteExcluded()) {
-            removeFloatBtn();
-            const stickyMedia = document.getElementById('idm-media-sticky-btn');
-            if (stickyMedia) stickyMedia.remove();
-            const stickySerial = document.getElementById('idm-serial-sticky-btn');
-            if (stickySerial) stickySerial.remove();
-            document.querySelectorAll('.idm-video-float-bar').forEach((b) => b.remove());
+        if (area === 'local') {
+          if (changes.settings) {
+            cachedSettings = { ...cachedSettings, ...changes.settings.newValue };
+            if (isCurrentSiteExcluded()) {
+              removeFloatBtn();
+              const stickyMedia = document.getElementById('idm-media-sticky-btn');
+              if (stickyMedia) stickyMedia.remove();
+              const stickySerial = document.getElementById('idm-serial-sticky-btn');
+              if (stickySerial) stickySerial.remove();
+              document.querySelectorAll('.idm-video-float-bar').forEach((b) => b.remove());
+            }
+          }
+          if (changes.hlsSaveDir) {
+            cachedHlsFolder = changes.hlsSaveDir.newValue || '';
           }
         }
       });
@@ -651,6 +672,7 @@
 
     let currentItems = [...items];
     const isMovie = Boolean(filterOptions && filterOptions.isMovie);
+    let selectedHlsFolder = cachedHlsFolder || '';
 
     // Filter controls HTML if filterOptions is provided
     let filterBarHtml = '';
@@ -870,7 +892,17 @@
         </div>
 
         ${filterBarHtml}
-        ${filterOptions && filterOptions.isHls ? `<div class="idm-hls-notice">${t.hls_notice}</div>` : ''}
+        ${filterOptions && filterOptions.isHls ? `
+        <div class="idm-hls-notice">${t.hls_notice}</div>
+        <div class="idm-hls-folder-bar">
+          <span class="idm-hls-folder-icon">📁</span>
+          <span class="idm-hls-folder-label">${t.hls_save_folder}:</span>
+          <span class="idm-hls-folder-path" id="idm-hls-folder-display" title="${selectedHlsFolder || t.hls_default_folder}">${selectedHlsFolder || t.hls_default_folder}</span>
+          <button type="button" class="idm-hls-folder-btn" id="idm-btn-pick-folder" title="${t.hls_browse_tip}">
+            📂 ${t.hls_browse_btn}
+          </button>
+        </div>
+        ` : ''}
 
         <div class="idm-modal-toolbar">
           <label class="idm-checkbox-label">
@@ -1273,6 +1305,41 @@
       });
     }
 
+    const pickFolderBtn = overlay.querySelector('#idm-btn-pick-folder');
+    const folderDisplay = overlay.querySelector('#idm-hls-folder-display');
+
+    if (pickFolderBtn) {
+      pickFolderBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pickFolderBtn.disabled = true;
+        pickFolderBtn.innerHTML = `<span>⏳ ...</span>`;
+
+        safeSendMessage(
+          {
+            action: 'pickFolder',
+            initialPath: selectedHlsFolder || ''
+          },
+          (res) => {
+            pickFolderBtn.disabled = false;
+            pickFolderBtn.innerHTML = `<span>📂 ${t.hls_browse_btn}</span>`;
+            if (res && res.success && res.path) {
+              selectedHlsFolder = res.path;
+              cachedHlsFolder = res.path;
+              if (folderDisplay) {
+                folderDisplay.textContent = res.path;
+                folderDisplay.title = res.path;
+              }
+              try {
+                chrome.storage.local.set({ hlsSaveDir: res.path });
+              } catch {}
+              showToast(t.toast_folder_selected(res.path), 'success');
+            }
+          }
+        );
+      });
+    }
+
     if (directHlsBtn) {
       directHlsBtn.addEventListener('click', () => {
         const selectedItems = getCheckedItems();
@@ -1284,7 +1351,8 @@
         safeSendMessage(
           {
             action: 'batchDownloadHls',
-            items: selectedItems
+            items: selectedItems,
+            saveDir: selectedHlsFolder || ''
           },
           (res) => {
             closeModal();
@@ -2423,7 +2491,8 @@
             filename: targetFilename,
             toQueue: true,
             startScheduler: false,
-            silent: isInstant
+            silent: isInstant,
+            saveDir: isHls ? (cachedHlsFolder || '') : ''
           },
           (res) => {
             if (res && res.success) {

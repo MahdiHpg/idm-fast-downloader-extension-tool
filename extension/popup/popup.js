@@ -52,6 +52,11 @@ const I18N = {
     instant_alt: 'کلید Alt',
     instant_shift: 'کلید Shift',
     instant_none: 'غیرفعال',
+    setting_hls_folder_title: 'پوشه ذخیره استریم‌ها (HLS)',
+    setting_hls_folder_sub: 'پوشه پیش‌فرض Downloads ویندوز',
+    btn_change_folder: '📁 تغییر...',
+    btn_pick_folder_title: 'انتخاب پوشه دلخواه در ویندوز',
+    btn_reset_folder_title: 'بازنشانی به پوشه Downloads',
     exts_covered: 'پسوندهای تحت پوشش',
     ext_input_placeholder: 'پسوند جدید (مثلاً: MKV)',
     btn_add: 'افزودن',
@@ -100,6 +105,11 @@ const I18N = {
     instant_alt: 'Alt key',
     instant_shift: 'Shift key',
     instant_none: 'Disabled',
+    setting_hls_folder_title: 'HLS Streams Save Folder',
+    setting_hls_folder_sub: 'Default Windows Downloads folder',
+    btn_change_folder: '📁 Change...',
+    btn_pick_folder_title: 'Select custom folder in Windows',
+    btn_reset_folder_title: 'Reset to Downloads folder',
     exts_covered: 'Monitored File Types',
     ext_input_placeholder: 'New extension (e.g. MKV)',
     btn_add: 'Add',
@@ -136,6 +146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleShowToast = document.getElementById('toggleShowToast');
   const selectInstantKey = document.getElementById('selectInstantKey');
 
+  const popupHlsFolderPath = document.getElementById('popupHlsFolderPath');
+  const btnPickHlsFolder = document.getElementById('btnPickHlsFolder');
+  const btnResetHlsFolder = document.getElementById('btnResetHlsFolder');
+
   const extCount = document.getElementById('extCount');
   const extTagsContainer = document.getElementById('extTagsContainer');
   const newExtInput = document.getElementById('newExtInput');
@@ -155,6 +169,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentSettings = {};
   let currentLang = 'fa';
+  let currentHlsFolder = '';
+
+  const updateHlsFolderUI = (path) => {
+    currentHlsFolder = path || '';
+    if (!popupHlsFolderPath) return;
+    const dict = I18N[currentLang] || I18N.fa;
+    if (currentHlsFolder) {
+      popupHlsFolderPath.textContent = currentHlsFolder;
+      popupHlsFolderPath.title = currentHlsFolder;
+      popupHlsFolderPath.dir = 'ltr';
+      popupHlsFolderPath.style.color = '#38bdf8';
+      if (btnResetHlsFolder) btnResetHlsFolder.style.display = 'inline-flex';
+    } else {
+      popupHlsFolderPath.textContent = dict.setting_hls_folder_sub;
+      popupHlsFolderPath.title = '';
+      popupHlsFolderPath.dir = currentLang === 'fa' ? 'rtl' : 'ltr';
+      popupHlsFolderPath.style.color = '';
+      if (btnResetHlsFolder) btnResetHlsFolder.style.display = 'none';
+    }
+  };
 
   // Apply Language to UI
   const applyLanguage = (lang = 'fa') => {
@@ -195,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderCurrentSiteStatus();
     renderExcludedSitesTags();
+    updateHlsFolderUI(currentHlsFolder);
   };
 
   // Display version dynamically from manifest
@@ -404,6 +439,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderTags();
         renderExcludedSitesTags();
         renderCurrentSiteStatus();
+
+        chrome.storage.local.get('hlsSaveDir', (res) => {
+          if (res && res.hlsSaveDir) {
+            updateHlsFolderUI(res.hlsSaveDir);
+          } else {
+            updateHlsFolderUI('');
+          }
+        });
+
         resolve();
       });
     });
@@ -475,6 +519,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentSettings.instantKey = selectInstantKey.value;
     await saveSettings();
   });
+
+  // HLS Folder Pickers
+  if (btnPickHlsFolder) {
+    btnPickHlsFolder.addEventListener('click', () => {
+      btnPickHlsFolder.disabled = true;
+      btnPickHlsFolder.innerHTML = '<span>⏳ ...</span>';
+      chrome.runtime.sendMessage(
+        { action: 'pickFolder', initialPath: currentHlsFolder || '' },
+        (resp) => {
+          btnPickHlsFolder.disabled = false;
+          const dict = I18N[currentLang] || I18N.fa;
+          btnPickHlsFolder.innerHTML = `<span data-i18n="btn_change_folder">${dict.btn_change_folder}</span>`;
+          if (resp && resp.success && resp.path) {
+            chrome.storage.local.set({ hlsSaveDir: resp.path });
+            updateHlsFolderUI(resp.path);
+          }
+        }
+      );
+    });
+  }
+
+  if (btnResetHlsFolder) {
+    btnResetHlsFolder.addEventListener('click', () => {
+      chrome.storage.local.remove('hlsSaveDir', () => {
+        updateHlsFolderUI('');
+      });
+    });
+  }
 
   // Add extension tag
   const addExtension = async () => {

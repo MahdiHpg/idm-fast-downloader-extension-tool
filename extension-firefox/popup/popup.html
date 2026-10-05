@@ -20,7 +20,7 @@
         <img src="../icons/icon-48.png" alt="IDM Logo" class="app-icon">
         <div class="title-wrap">
           <h1 id="appTitle" data-i18n="app_title">دانلود با IDM</h1>
-          <span class="badge-version">v1.8.8</span>
+          <span class="badge-version">v1.8.9</span>
         </div>
       </div>
       <div class="header-actions">
@@ -146,6 +146,21 @@
           <option value="Shift" data-i18n="instant_shift">کلید Shift</option>
           <option value="None" data-i18n="instant_none">غیرفعال</option>
         </select>
+      </div>
+
+      <div class="setting-item folder-setting-item">
+        <div class="setting-info">
+          <span class="setting-title" data-i18n="setting_hls_folder_title">پوشه ذخیره استریم‌ها (HLS)</span>
+          <span class="setting-subtitle folder-subtitle" id="popupHlsFolderPath" data-i18n="setting_hls_folder_sub">پوشه پیش‌فرض Downloads ویندوز</span>
+        </div>
+        <div class="folder-actions-row">
+          <button type="button" class="btn-secondary btn-pick-folder" id="btnPickHlsFolder" title="انتخاب پوشه دلخواه در ویندوز" data-i18n-title="btn_pick_folder_title">
+            <span data-i18n="btn_change_folder">📁 تغییر...</span>
+          </button>
+          <button type="button" class="btn-secondary btn-pick-folder" id="btnResetHlsFolder" style="display:none;" title="بازنشانی به پوشه Downloads" data-i18n-title="btn_reset_folder_title">
+            <span>↺</span>
+          </button>
+        </div>
       </div>
     </div>
 

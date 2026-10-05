@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.8-emerald?style=flat-square" alt="Version 1.8.8">
+  <img src="https://img.shields.io/badge/version-1.8.9-emerald?style=flat-square" alt="Version 1.8.9">
   <img src="https://img.shields.io/badge/Manifest-V3-blue?style=flat-square" alt="Manifest V3">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Platform Windows">
   <img src="https://img.shields.io/badge/Languages-Persian%20%7C%20English-purple?style=flat-square" alt="Bilingual">
@@ -23,13 +23,13 @@
 ## 📌 فهرست مطالب | Table of Contents
 - [فارسی (Persian)](#-فارسی-persian)
   - [داستان ساخت این افزونه](#-داستان-ساخت-این-افزونه)
-  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۸۸)
+  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۸۹)
   - [ساختار فایل‌های پروژه](#-ساختار-فایل‌های-پروژه)
   - [راهنمای نصب سریع و آسان](#-راهنمای-نصب-سریع-و-آسان)
   - [نحوه استفاده از امکانات](#-نحوه-استفاده-از-امکانات)
 - [English](#-english)
   - [About This Project](#-about-this-project)
-  - [Key Features](#-key-features-v188)
+  - [Key Features](#-key-features-v189)
   - [Quick Installation](#-quick-installation)
   - [How to Use](#-how-to-use)
 - [توسعه‌دهنده و سازنده | Author](#-توسعه‌دهنده-و-سازنده--author)
@@ -52,16 +52,17 @@
 
 ---
 
-### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۸)
+### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۹)
 
 - **⚡ رهگیری فوری کلیک (Click Interception):** با کلیک چپ روی هر فایل، مرورگر بدون معطلی دیالوگ تایید و ذخیره رسمی IDM رو باز می‌کنه.
-- **⚡ دانلود مستقیم استریم‌های HLS چندقطعه‌ای (HLS Stream Downloader):** پشتیبانی هوشمند از پرتال‌های استریم آنلاین با استریم‌های HLS (.m3u8). دانلود پس‌زمینه‌ای سگمنت‌ها توسط پل بومی و سرهم‌بندی خودکار آن‌ها در یک فایل واحد کامل با بالاترین کیفیت در پوشه Downloads، یا استخراج تمام قسمت‌ها و کیفیت‌ها (1080p, 720p, 480p) در مدال دسته‌ای.
+- **⚡ دانلود مستقیم استریم‌های HLS چندقطعه‌ای به پوشه دلخواه:** پشتیبانی هوشمند از پرتال‌های استریم آنلاین با استریم‌های HLS (.m3u8). قابلیت انتخاب پوشه مقصد در ویندوز (Folder Picker)، دانلود چندنخی سگمنت‌ها توسط پل بومی و ادغام خودکار در یک فایل کامل در پوشه انتخابی کاربر همراه با نمایش زنده درصد پیشرفت و نام فایل.
 - **🎬 استخراج هوشمند فیلم‌ها و سریال‌ها (Movie & Series Batch Extractor):** در تمامی سایت‌های مرجع دانلود فیلم و سریال و پلتفرم‌های استریم (چه فیلم‌های سینمایی تک‌قسمتی و چه سریال‌های چندفصله)، دکمه شناور هوشمند IDM ظاهر می‌شود تا بدون نیاز به جستجوی دستی بین لینک‌های شلوغ، با یک کلیک:
   - شناسایی هوشمند فیلم‌های سینمایی تک‌قسمتی، نمایش تمام کیفیت‌ها (4K, 1080p, 720p, 480p) و حذف دراپ‌داون غیرضروری فصل برای خلوت ماندن رابط کاربری.
   - تمام فصل‌ها، قسمت‌ها و کیفیت‌ها رو یکجا استخراج و دسته‌بندی می‌کنه.
   - فیلتر صوتی تفکیک نسخه‌های دوبله فارسی (`🎙️`) و زبان اصلی (`🔊`) در کنار تفکیک زیرنویس‌های فارسی، انگلیسی و سایر زبان‌ها.
   - هماهنگ‌سازی خودکار نام زیرنویس‌ها (`.srt`) با نام دقیق فایل ویدیو/فیلم جهت پخش و لود خودکار بدون نیاز به Rename دستی.
   - نام فایل‌ها رو با سوییچ رسمی `/f` مستقیماً با نام شفاف در صف دانلود IDM تنظیم می‌کنه تا اسم‌ها به صورت هش یا بدون پسوند ذخیره نشوند.
+- **📁 انتخاب پوشه ذخیره‌سازی استریم‌ها (Custom Folder Picker):** امکان تعیین پوشه دلخواه در سیستم ویندوز هم از طریق مدال استخراج و هم از پنل پاپ‌آپ افزونه (ذخیره همیشگی در تنظیمات).
 - **📺 نوار شناور روی پلیرهای ویدیو و استریم (Floating Player Bar):** هنگام پخش یا هاور روی پلیرهای ویدیو در وب‌سایت‌های مختلف، نوار شیک دانلود ظاهر می‌شود تا ویدیو با نام صفحه و پسوند درست مستقیماً به IDM منتقل شود.
 - **📊 پیش‌نمایش حجم فایل‌ها پیش از دانلود (File Size Preview):** استعلام سبک و هوشمند حجم هر کیفیت و محاسبه مجموع حجم فایل‌های انتخابی در مدال دانلود دسته‌ای.
 - **⚡ کلید دانلود آنی و مستقیم (Fast Action Click):** فشردن کلید Ctrl هنگام کلیک روی لینک، بدون باز شدن پنجره‌های اضافی دانلود را مستقیماً به صف می‌رسد.
@@ -85,7 +86,7 @@ idm-fast-downloader/
 │   ├── background.js                # سرویس ورکر پس‌زمینه و رهگیری هوشمند
 │   ├── content.js                   # اسکریپت رهگیری کلیک‌ها و پنل شناور سلکت
 │   ├── content.css                  # استایل نوتیفیکیشن‌ها و مدال دانلود دسته‌ای
-│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.8)
+│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.9)
 ├── native-host/                     # پل ارتباطی بومی ویندوز
 │   ├── IdmBridge.cs                 # سورس C# پل ارتباطی بر بستر استاندارد Stdio
 │   ├── com.idm.nativehost.chrome.json
@@ -154,10 +155,11 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ---
 
-### ✨ Key Features (v1.8.8)
+### ✨ Key Features (v1.8.9)
 
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
-- **⚡ Direct HLS Stream Downloader & Adapter:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Background segment fetching and automatic concatenation into a single complete high-quality video in your Downloads folder via the native bridge, alongside batch episode and quality extraction (1080p, 720p, 480p).
+- **⚡ Direct HLS Stream Downloader & Custom Folder Picker:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Pick any destination folder on your PC with a native Windows folder dialog, download segments in parallel with multi-threading, and automatically merge them into a single high-quality video file directly in your target folder.
+- **📁 Persistent Folder Setting:** Configure your preferred stream download directory from both the batch extractor modal and the extension popup settings.
 - **🎬 Smart Movie & Serial Batch Extractor (VOD & Media Portals):** Automated detection on movie and TV show download sites. Whether it is a single movie with multiple qualities or a multi-season series:
   - Automatically identifies single movies, lists all available qualities (4K, 1080p, 720p, 480p), and cleanly omits the season filter.
   - Extracts all seasons, episodes, and qualities with one click.
