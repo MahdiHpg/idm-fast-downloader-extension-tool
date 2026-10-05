@@ -54,6 +54,10 @@
       serial_btn_extract: 'استخراج قسمت‌ها و کیفیت‌ها (IDM)',
       serial_btn_float: '🎬 استخراج قسمت‌های سریال با IDM',
       serial_btn_float_count: (n) => `🎬 استخراج هوشمند قسمت‌ها (${n} فایل)`,
+      movie_btn_float: '🎬 دانلود فیلم با IDM',
+      movie_btn_float_count: (n) => `🎬 دانلود فیلم با IDM (${n} کیفیت)`,
+      movie_modal_title: 'دانلود فیلم با IDM',
+      movie_modal_subtitle: (count) => `${count} کیفیت و لینک آماده دانلود یافت شد`,
       serial_extracting: 'در حال استخراج لینک‌های تمام قسمت‌ها...',
       serial_season_label: 'فصل:',
       serial_quality_label: 'کیفیت ویدیو:',
@@ -112,6 +116,10 @@
       serial_btn_extract: 'Batch Extract Episodes (IDM)',
       serial_btn_float: '🎬 Batch Extract Episodes (IDM)',
       serial_btn_float_count: (n) => `🎬 Extract Episodes (${n} files)`,
+      movie_btn_float: '🎬 Download Movie with IDM',
+      movie_btn_float_count: (n) => `🎬 Download Movie with IDM (${n} qualities)`,
+      movie_modal_title: 'Download Movie with IDM',
+      movie_modal_subtitle: (count) => `${count} qualities and links ready for download`,
       serial_extracting: 'Extracting all episode download links...',
       serial_season_label: 'Season:',
       serial_quality_label: 'Video Quality:',
@@ -642,6 +650,7 @@
     overlay.style.direction = isRtl ? 'rtl' : 'ltr';
 
     let currentItems = [...items];
+    const isMovie = Boolean(filterOptions && filterOptions.isMovie);
 
     // Filter controls HTML if filterOptions is provided
     let filterBarHtml = '';
@@ -651,6 +660,19 @@
         filterOptions.seasons.forEach((s) => {
           seasonOptionsHtml += `<option value="${s.id}">${s.title}</option>`;
         });
+      }
+
+      const showSeasonFilter = !isMovie && filterOptions.seasons && filterOptions.seasons.length > 1;
+      let seasonFilterHtml = '';
+      if (showSeasonFilter) {
+        seasonFilterHtml = `
+          <div class="idm-filter-group">
+            <label class="idm-filter-label">${t.serial_season_label}</label>
+            <select id="idm-filter-season" class="idm-filter-select">
+              ${seasonOptionsHtml}
+            </select>
+          </div>
+        `;
       }
 
       let qualityOptionsHtml = `<option value="all">${t.serial_quality_all}</option>`;
@@ -739,12 +761,7 @@
 
       filterBarHtml = `
         <div class="idm-modal-filters">
-          <div class="idm-filter-group">
-            <label class="idm-filter-label">${t.serial_season_label}</label>
-            <select id="idm-filter-season" class="idm-filter-select">
-              ${seasonOptionsHtml}
-            </select>
-          </div>
+          ${seasonFilterHtml}
           <div class="idm-filter-group">
             <label class="idm-filter-label">${t.serial_quality_label}</label>
             <select id="idm-filter-quality" class="idm-filter-select">
@@ -776,10 +793,14 @@
         }
       });
 
+      // Also detect primary movie video if single movie or non-episodic media
+      const primaryMovieVideo = list.find((item) => !item.isSub && item.filename);
+      const movieBase = primaryMovieVideo ? primaryMovieVideo.filename.replace(/\.[a-zA-Z0-9]+$/, '') : null;
+
       list.forEach((item) => {
-        if (item.isSub && item.seasonId !== undefined && item.episodeNum !== null) {
-          const key = `${item.seasonId}_${item.episodeNum}`;
-          const videoBase = videoBaseMap.get(key);
+        if (item.isSub) {
+          const key = item.episodeNum !== null ? `${item.seasonId}_${item.episodeNum}` : null;
+          const videoBase = (key && videoBaseMap.get(key)) || (isMovie ? movieBase : null);
           if (videoBase) {
             const langSuffix = item.subLang === 'en' ? '.en' : (item.subLang === 'fa' ? '.fa' : '');
             item.filename = `${videoBase}${langSuffix}.srt`;
@@ -825,8 +846,10 @@
       }).join('');
     };
 
-    const modalTitle = filterOptions ? t.serial_modal_title : t.modal_title;
-    const modalSubtitle = filterOptions ? t.serial_modal_subtitle(filterOptions.episodeCount || currentItems.length, currentItems.length) : t.modal_subtitle(currentItems.length);
+    const modalTitle = isMovie ? t.movie_modal_title : (filterOptions ? t.serial_modal_title : t.modal_title);
+    const modalSubtitle = isMovie
+      ? t.movie_modal_subtitle(currentItems.length)
+      : (filterOptions ? t.serial_modal_subtitle(filterOptions.episodeCount || currentItems.length, currentItems.length) : t.modal_subtitle(currentItems.length));
 
     overlay.innerHTML = `
       <div class="idm-batch-modal">
@@ -1171,7 +1194,9 @@
 
         const subElem = overlay.querySelector('#idm-modal-sub');
         if (subElem) {
-          subElem.textContent = t.serial_modal_subtitle(filterOptions.episodeCount || filtered.length, filtered.length);
+          subElem.textContent = isMovie
+            ? t.movie_modal_subtitle(filtered.length)
+            : t.serial_modal_subtitle(filterOptions.episodeCount || filtered.length, filtered.length);
         }
       };
 
@@ -1460,7 +1485,7 @@
   // 1. Universal Page Media Links & Episode Scanner
   // (Detects movie/serial download links on portals like f2my.top, film2media, digimoviez, zarfilm, etc.)
   const scanDocumentForEpisodes = () => {
-    const anchors = Array.from(document.querySelectorAll('a[href]'));
+    const anchors = Array.from(document.querySelectorAll('a[href], a[data-url], a[data-href], button[data-url], button[data-href], [data-download-url], [data-file-url]'));
     const mediaRegex = /\.(mkv|mp4|avi|mov|wmv|ts|m4v|webm)($|\?)/i;
     const subRegex = /\.(srt|vtt|sub)($|\?)/i;
 
@@ -1468,7 +1493,7 @@
     const seenUrls = new Set();
 
     anchors.forEach((a) => {
-      const rawHref = a.getAttribute('href');
+      const rawHref = a.getAttribute('href') || a.getAttribute('data-url') || a.getAttribute('data-href') || a.getAttribute('data-download-url') || a.getAttribute('data-file-url');
       if (!rawHref) return;
 
       let fullUrl = '';
@@ -1491,8 +1516,8 @@
         filename = decodeURIComponent(u.pathname.split('/').pop().split('?')[0]);
       } catch {}
 
-      if (!filename) {
-        filename = (a.textContent || a.title || '').trim();
+      if (!filename || filename === '/' || !filename.includes('.')) {
+        filename = (a.getAttribute('download') || a.textContent || a.title || '').trim();
       }
 
       // Detect season: e.g. S01, S1, /S01/, /Season-1/
@@ -1583,11 +1608,18 @@
     const qualities = Array.from(new Set(candidateItems.map((it) => it.quality).filter((q) => q > 0)))
       .sort((a, b) => b - a);
 
+    const hasEpisodePattern = candidateItems.some((it) => it.episodeNum !== null);
+    const videoItems = candidateItems.filter((it) => !it.isSub);
+    const hasVideo = videoItems.length > 0;
+    const isMovie = hasVideo && !hasEpisodePattern && (seasons.length <= 1);
+
     return {
       items: candidateItems,
       seasons: seasons,
       qualities: qualities,
-      episodeCount: candidateItems.filter((it) => !it.isSub).length || candidateItems.length
+      episodeCount: videoItems.length || candidateItems.length,
+      isMovie: isMovie,
+      hasVideo: hasVideo
     };
   };
 
@@ -1595,14 +1627,21 @@
     const handleScan = () => {
       const scanResult = scanDocumentForEpisodes();
 
-      // Only show sticky button if at least 3 media links are found
       const hasEpisodePattern = scanResult.items.some((it) => it.episodeNum !== null);
-      const minThreshold = hasEpisodePattern ? 2 : 3;
+      const isMovie = scanResult.isMovie;
+      const minThreshold = isMovie ? 1 : (hasEpisodePattern ? 2 : 3);
 
       if (scanResult.items.length < minThreshold) return;
+      if (isMovie && !scanResult.hasVideo) return;
 
       const t = getT();
-      const buttonLabel = t.serial_btn_float_count(scanResult.items.length);
+      let buttonLabel = '';
+      if (isMovie) {
+        const videoCount = scanResult.items.filter((it) => !it.isSub).length;
+        buttonLabel = videoCount > 1 ? t.movie_btn_float_count(videoCount) : t.movie_btn_float;
+      } else {
+        buttonLabel = t.serial_btn_float_count(scanResult.items.length);
+      }
 
       const existingBtn = document.getElementById('idm-media-sticky-btn') || document.getElementById('idm-serial-sticky-btn');
       if (existingBtn) {
@@ -1618,12 +1657,14 @@
         const activeSeasons = liveResult.seasons.length > 0 ? liveResult.seasons : scanResult.seasons;
         const activeQualities = liveResult.qualities.length > 0 ? liveResult.qualities : scanResult.qualities;
         const activeCount = liveResult.episodeCount || scanResult.episodeCount;
+        const activeIsMovie = liveResult.items.length > 0 ? liveResult.isMovie : scanResult.isMovie;
 
         openBatchModal(activeItems, {
           allItems: activeItems,
           seasons: activeSeasons,
           qualities: activeQualities,
-          episodeCount: activeCount
+          episodeCount: activeCount,
+          isMovie: activeIsMovie
         });
       }, buttonLabel);
     };
@@ -1649,10 +1690,11 @@
   // 2. Specialized VOD Streaming API Adapter
   // (For streaming platforms where links are fetched on demand via internal API)
   const initStreamingVodAdapter = (hostname, pathname) => {
-    const match = pathname.match(/\/serial\/(\d+)/);
+    const match = pathname.match(/\/(?:serial|movie|film)\/(\d+)/i);
     if (!match) return;
 
     const contentId = match[1];
+    const isMovieUrl = /\/(?:movie|film)\//i.test(pathname);
     const t = getT();
 
     // Clean root domain to prevent core.www subdomains
@@ -1664,8 +1706,9 @@
     const extractEpisodesFromApi = async () => {
       const curT = getT();
       const currentPath = window.location.pathname;
-      const curMatch = currentPath.match(/\/serial\/(\d+)/);
+      const curMatch = currentPath.match(/\/(?:serial|movie|film)\/(\d+)/i);
       const activeContentId = curMatch ? curMatch[1] : contentId;
+      const activeIsMovie = /\/(?:movie|film)\//i.test(currentPath);
 
       if (stickyBtn) {
         stickyBtn.classList.add('idm-serial-loading');
@@ -1700,7 +1743,7 @@
         }
 
         if (!seriesEnglishTitle) {
-          const urlSlugMatch = currentPath.match(/\/serial\/\d+-([^/]+)/);
+          const urlSlugMatch = currentPath.match(/\/(?:serial|movie|film)\/\d+-([^/]+)/i);
           if (urlSlugMatch) {
             seriesEnglishTitle = urlSlugMatch[1].replace(/[^a-zA-Z0-9_\-\.]/g, '');
           }
@@ -1722,10 +1765,10 @@
               totalEpisodes += attachments.length;
 
               attachments.forEach((att, epIdx) => {
-                const epNum = epIdx + 1;
-                const epTitle = att.Title || `${season.title} - قسمت ${epNum}`;
+                const epNum = activeIsMovie ? null : epIdx + 1;
+                const epTitle = att.Title || (activeIsMovie ? (seriesEnglishTitle || 'فیلم') : `${season.title} - قسمت ${epNum}`);
                 const sPad = String(season.id).padStart(2, '0');
-                const ePad = String(epNum).padStart(2, '0');
+                const ePad = epNum !== null ? String(epNum).padStart(2, '0') : '';
                 const files = att.Files || [];
 
                 files.forEach((f) => {
@@ -1751,9 +1794,11 @@
                     const isDubbed = Boolean(att.IsDubbed) || isDubbedRegex.test(checkStr);
 
                     if (!fileName) {
-                      const prefix = seriesEnglishTitle || 'Episode';
+                      const prefix = seriesEnglishTitle || (activeIsMovie ? 'Movie' : 'Episode');
                       const dubTag = isDubbed ? '-DUB' : '';
-                      fileName = `${prefix}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
+                      fileName = activeIsMovie
+                        ? `${prefix}${dubTag}_${quality}p.mp4`
+                        : `${prefix}-S${sPad}E${ePad}${dubTag}_${quality}.mp4`;
                     }
 
                     allItems.push({
@@ -1774,8 +1819,10 @@
                     if (f.Path.includes('sub_en') || f.Path.includes('en.srt')) subLang = 'en';
                     const subLabel = subLang === 'fa' ? 'فارسی' : 'English';
 
-                    const prefix = seriesEnglishTitle || 'Episode';
-                    const subFileName = `${prefix}-S${sPad}E${ePad}-sub_${subLang}.srt`;
+                    const prefix = seriesEnglishTitle || (activeIsMovie ? 'Movie' : 'Episode');
+                    const subFileName = activeIsMovie
+                      ? `${prefix}-sub_${subLang}.srt`
+                      : `${prefix}-S${sPad}E${ePad}-sub_${subLang}.srt`;
 
                     allItems.push({
                       url: f.Path,
@@ -1800,7 +1847,7 @@
         if (stickyBtn) {
           stickyBtn.classList.remove('idm-serial-loading');
           const textElem = stickyBtn.querySelector('.idm-serial-text');
-          if (textElem) textElem.textContent = curT.serial_btn_float;
+          if (textElem) textElem.textContent = activeIsMovie ? curT.movie_btn_float : curT.serial_btn_float;
         }
 
         if (allItems.length === 0) {
@@ -1815,20 +1862,21 @@
           allItems: allItems,
           seasons: seasons,
           qualities: qualities,
-          episodeCount: totalEpisodes
+          episodeCount: activeIsMovie ? 1 : totalEpisodes,
+          isMovie: activeIsMovie
         });
       } catch (err) {
         if (stickyBtn) {
           stickyBtn.classList.remove('idm-serial-loading');
           const textElem = stickyBtn.querySelector('.idm-serial-text');
-          if (textElem) textElem.textContent = curT.serial_btn_float;
+          if (textElem) textElem.textContent = isMovieUrl ? curT.movie_btn_float : curT.serial_btn_float;
         }
         showToast(curT.toast_bridge_error, 'error');
         console.debug('[IDM] Batch extraction note:', err);
       }
     };
 
-    stickyBtn = createStickyButton(extractEpisodesFromApi, t.serial_btn_float);
+    stickyBtn = createStickyButton(extractEpisodesFromApi, isMovieUrl ? t.movie_btn_float : t.serial_btn_float);
   };
 
   // 3. Specialized HLS Streaming Portal Adapter
@@ -2119,12 +2167,15 @@
         const qualities = Array.from(new Set(allItems.map((it) => it.quality).filter((q) => q > 0)))
           .sort((a, b) => b - a);
 
+        const isSingle = serialParts.length === 1;
+
         openBatchModal(allItems, {
           allItems: allItems,
           seasons: seasons,
           qualities: qualities,
-          episodeCount: serialParts.length,
-          isHls: true
+          episodeCount: isSingle ? 1 : serialParts.length,
+          isHls: true,
+          isMovie: isSingle
         });
       } catch (err) {
         if (stickyBtn) {

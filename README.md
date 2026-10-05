@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.5-emerald?style=flat-square" alt="Version 1.8.5">
+  <img src="https://img.shields.io/badge/version-1.8.6-emerald?style=flat-square" alt="Version 1.8.6">
   <img src="https://img.shields.io/badge/Manifest-V3-blue?style=flat-square" alt="Manifest V3">
   <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square" alt="Platform Windows">
   <img src="https://img.shields.io/badge/Languages-Persian%20%7C%20English-purple?style=flat-square" alt="Bilingual">
@@ -23,13 +23,13 @@
 ## 📌 فهرست مطالب | Table of Contents
 - [فارسی (Persian)](#-فارسی-persian)
   - [داستان ساخت این افزونه](#-داستان-ساخت-این-افزونه)
-  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۸۵)
+  - [ویژگی‌های کلیدی](#-ویژگی‌های-کلیدی-نسخه-۱۸۶)
   - [ساختار فایل‌های پروژه](#-ساختار-فایل‌های-پروژه)
   - [راهنمای نصب سریع و آسان](#-راهنمای-نصب-سریع-و-آسان)
   - [نحوه استفاده از امکانات](#-نحوه-استفاده-از-امکانات)
 - [English](#-english)
   - [About This Project](#-about-this-project)
-  - [Key Features](#-key-features-v185)
+  - [Key Features](#-key-features-v186)
   - [Quick Installation](#-quick-installation)
   - [How to Use](#-how-to-use)
 - [توسعه‌دهنده و سازنده | Author](#-توسعه‌دهنده-و-سازنده--author)
@@ -52,18 +52,19 @@
 
 ---
 
-### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۵)
+### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۶)
 
 - **⚡ رهگیری فوری کلیک (Click Interception):** با کلیک چپ روی هر فایل، مرورگر بدون معطلی دیالوگ تایید و ذخیره رسمی IDM رو باز می‌کنه.
 - **⚡ دانلود مستقیم استریم‌های HLS چندقطعه‌ای (HLS Stream Downloader):** پشتیبانی هوشمند از پرتال‌های استریم آنلاین با استریم‌های HLS (.m3u8). دانلود پس‌زمینه‌ای سگمنت‌ها توسط پل بومی و سرهم‌بندی خودکار آن‌ها در یک فایل واحد کامل با بالاترین کیفیت در پوشه Downloads، یا استخراج تمام قسمت‌ها و کیفیت‌ها (1080p, 720p, 480p) در مدال دسته‌ای.
-- **🎬 استخراج هوشمند قسمت‌های سریال و فیلم (Serial & VOD Batch Extractor):** در پلتفرم‌های استریم و سایت‌های مرجع دانلود فیلم و سریال که لینک‌های متعدد قسمت‌ها در صفحه قرار دارند یا انتخاب متن مسدود شده، یک دکمه شناور هوشمند در صفحه ظاهر می‌شه که با یک کلیک:
-  - تمام فصل‌ها، قسمت‌ها و کیفیت‌ها (4K, 1080p, 720p, 480p, 360p) رو یکجا استخراج و دسته‌بندی می‌کنه.
+- **🎬 استخراج هوشمند فیلم‌ها و سریال‌ها (Movie & Series Batch Extractor):** در تمامی سایت‌های مرجع دانلود فیلم و سریال و پلتفرم‌های استریم (چه فیلم‌های سینمایی تک‌قسمتی و چه سریال‌های چندفصله)، دکمه شناور هوشمند IDM ظاهر می‌شود تا بدون نیاز به جستجوی دستی بین لینک‌های شلوغ، با یک کلیک:
+  - شناسایی هوشمند فیلم‌های سینمایی تک‌قسمتی، نمایش تمام کیفیت‌ها (4K, 1080p, 720p, 480p) و حذف دراپ‌داون غیرضروری فصل برای خلوت ماندن رابط کاربری.
+  - تمام فصل‌ها، قسمت‌ها و کیفیت‌ها رو یکجا استخراج و دسته‌بندی می‌کنه.
   - فیلتر صوتی تفکیک نسخه‌های دوبله فارسی (`🎙️`) و زبان اصلی (`🔊`) در کنار تفکیک زیرنویس‌های فارسی، انگلیسی و سایر زبان‌ها.
-  - هماهنگ‌سازی خودکار نام زیرنویس‌ها (`.srt`) با نام دقیق فایل ویدیو جهت پخش و لود خودکار بدون نیاز به Rename دستی.
+  - هماهنگ‌سازی خودکار نام زیرنویس‌ها (`.srt`) با نام دقیق فایل ویدیو/فیلم جهت پخش و لود خودکار بدون نیاز به Rename دستی.
   - نام فایل‌ها رو با سوییچ رسمی `/f` مستقیماً با نام شفاف در صف دانلود IDM تنظیم می‌کنه تا اسم‌ها به صورت هش یا بدون پسوند ذخیره نشوند.
 - **📺 نوار شناور روی پلیرهای ویدیو و استریم (Floating Player Bar):** هنگام پخش یا هاور روی پلیرهای ویدیو در وب‌سایت‌های مختلف، نوار شیک دانلود ظاهر می‌شود تا ویدیو با نام صفحه و پسوند درست مستقیماً به IDM منتقل شود.
 - **📊 پیش‌نمایش حجم فایل‌ها پیش از دانلود (File Size Preview):** استعلام سبک و هوشمند حجم هر کیفیت و محاسبه مجموع حجم فایل‌های انتخابی در مدال دانلود دسته‌ای.
-- **⚡ کلید دانلود آنی و مستقیم (Fast Action Click):** فشردن کلید Ctrl هنگام کلیک روی لینک، بدون باز شدن پنجره‌های اضافی دانلود را مستقیماً به صف می‌فرستد.
+- **⚡ کلید دانلود آنی و مستقیم (Fast Action Click):** فشردن کلید Ctrl هنگام کلیک روی لینک، بدون باز شدن پنجره‌های اضافی دانلود را مستقیماً به صف می‌رسد.
 - **🖱️ پنجره پاپ‌آپ با قابلیت جابجایی آزادانه (Freely Draggable Modal):** پاپ‌آپ دانلود دسته‌ای به طور پیش‌فرض در گوشه بالای صفحه قرار می‌گیرد تا محتوای سایت را نپوشاند و در صورت نیاز می‌توانید آن را با ماوس آزادانه در کل فضای مرورگر جابجا کنید.
 - **🚫 لیست استثنا و مسدودسازی سایت‌ها (Excluded Sites / Domain Blocklist):** کلید سریع تک‌کلیکی در پاپ‌آپ برای غیرفعال‌سازی IDM در سایت‌های خاص و دانلود توسط خود مرورگر.
 - **📥 دانلود هوشمند دسته‌ای (Batch Floating Bar):** با ماوس چند خط یا جدول پارت‌های دانلود (مثلاً پارت ۱ تا ۱۰) رو هایلایت/سلکت کنید؛ یک نوار ابزار شیک و کاربردی ظاهر می‌شه (دانلود با IDM، کپی لینک‌ها، خروجی متنی `.txt`).
@@ -84,7 +85,7 @@ idm-fast-downloader/
 │   ├── background.js                # سرویس ورکر پس‌زمینه و رهگیری هوشمند
 │   ├── content.js                   # اسکریپت رهگیری کلیک‌ها و پنل شناور سلکت
 │   ├── content.css                  # استایل نوتیفیکیشن‌ها و مدال دانلود دسته‌ای
-│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.4)
+│   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.6)
 ├── native-host/                     # پل ارتباطی بومی ویندوز
 │   ├── IdmBridge.cs                 # سورس C# پل ارتباطی بر بستر استاندارد Stdio
 │   ├── com.idm.nativehost.chrome.json
@@ -153,15 +154,16 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ---
 
-### ✨ Key Features (v1.8.5)
+### ✨ Key Features (v1.8.6)
 
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
 - **⚡ Direct HLS Stream Downloader & Adapter:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Background segment fetching and automatic concatenation into a single complete high-quality video in your Downloads folder via the native bridge, alongside batch episode and quality extraction (1080p, 720p, 480p).
-- **🎬 Smart Serial & Episode Batch Extractor (VOD & Media Portals):** On streaming platforms and serial download portals with numerous episodes:
-  - Extract all seasons, episodes, and qualities (4K, 1080p, 720p, 480p, 360p) with one click.
+- **🎬 Smart Movie & Serial Batch Extractor (VOD & Media Portals):** Automated detection on movie and TV show download sites. Whether it is a single movie with multiple qualities or a multi-season series:
+  - Automatically identifies single movies, lists all available qualities (4K, 1080p, 720p, 480p), and cleanly omits the season filter.
+  - Extracts all seasons, episodes, and qualities with one click.
   - Separate audio filter for Dubbed vs. Original releases alongside selective subtitle filters (Persian, English, etc.).
-  - Auto-synchronize subtitle filenames (`.srt`) with video quality names for effortless auto-loading in VLC, PotPlayer, KMPlayer, etc.
-  - Send custom filenames directly via IDM's `/f` command-line switch so all files land neatly named in IDM's queue.
+  - Auto-synchronizes subtitle filenames (`.srt`) with movie/video filenames for effortless auto-loading in VLC, PotPlayer, KMPlayer, etc.
+  - Sends custom filenames directly via IDM's `/f` command-line switch so all files land neatly named in IDM's queue.
 - **📺 Floating Player Bar:** Sleek floating button appearing on playing web videos/streams for one-click download with clean filename and extension.
 - **📊 File Size Preview:** Asynchronously fetches exact file sizes for qualities and displays the total batch download size.
 - **⚡ Instant Action Hotkey:** Hold `Ctrl` while clicking any link to silently push it directly to the download queue.
