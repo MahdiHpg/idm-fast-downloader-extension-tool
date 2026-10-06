@@ -539,14 +539,15 @@
     if (!raw || typeof raw !== 'string') return '';
     let str = raw.trim();
     // Remove domain suffixes like "- domain.com" or "| site.ir"
-    str = str.replace(/[-_|•]\s*[\w.-]+\.(?:ir|com|net|org|co|tv|media|site|club|top|info|fun|link)\b/gi, '');
-    // Remove common Persian site branding
-    str = str.replace(/[-_|•]\s*(?:\.[a-z]{2,}|فیلم|مدیا|دانلود|مووی|تی‌وی|tv|media|movie)\b/gi, '');
-    str = str.replace(/(?:در|از)\s+(?:فیلم|سریال|رسانه|سایت)\b/gi, '');
+    str = str.replace(/[-_|•]\s*[\w.-]+\.(?:[a-zA-Z]{2,8})\b/gi, '');
     // Remove common download / watch prefixes
     str = str.replace(/^(?:دانلود\s+(?:و\s+تماشای\s+آنلاین\s+)?(?:رایگان\s+)?(?:کامل\s+)?(?:فیلم|سریال|انیمیشن|مستند|برنامه)?)/i, '');
     str = str.replace(/^(?:تماشای\s+آنلاین\s+(?:فیلم|سریال|انیمیشن|مستند)?)/i, '');
     str = str.replace(/^(?:پخش\s+آنلاین\s+(?:فیلم|سریال|انیمیشن|مستند)?)/i, '');
+    // Remove trailing site branding signatures after common separators
+    str = str.replace(/[-_|•]\s*[^-_|•]+$/g, (m) => {
+      return /(?:\.[a-z]{2,}|فیلم|مدیا|دانلود|مووی|تی‌وی|tv|media|movie)/i.test(m) ? '' : m;
+    });
     str = str.replace(/^[-_:|•\s]+|[-_:|•\s]+$/g, '').trim();
     str = str.replace(/[\/\\:*?"<>|]/g, '').trim();
     return str;
@@ -2303,7 +2304,8 @@
         const c0 = cJson.body?.content?.[0];
         if (c0 && c0.content_token) {
           const payload = decodeJwtPayload(c0.content_token);
-          const masterStreamUrl = payload?.content?.stream ? Object.values(payload.content.stream)[0] : null;
+          const streamData = payload?.content?.stream;
+          const masterStreamUrl = typeof streamData === 'string' ? streamData : (streamData ? Object.values(streamData)[0] : null);
           if (masterStreamUrl) {
             const variants = await parseVariantStreams(masterStreamUrl);
             const bestVariant = variants[0] || { url: masterStreamUrl, quality: 720 };
@@ -2456,7 +2458,8 @@
           if (!part.content_token) return [];
 
           const payload = decodeJwtPayload(part.content_token);
-          const masterStreamUrl = payload?.content?.stream ? Object.values(payload.content.stream)[0] : null;
+          const streamData = payload?.content?.stream;
+          const masterStreamUrl = typeof streamData === 'string' ? streamData : (streamData ? Object.values(streamData)[0] : null);
           if (!masterStreamUrl) return [];
 
           const variants = await parseVariantStreams(masterStreamUrl);
