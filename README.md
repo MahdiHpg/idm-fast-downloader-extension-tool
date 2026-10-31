@@ -81,6 +81,7 @@
 
 ```text
 idm-fast-downloader/
+├── Setup.exe                        # 🚀 برنامه نصب‌کننده گرافیکی مستقل و خودکار (بدون نیاز به پیش‌نیاز)
 ├── extension/                       # سورس افزونه مرورگر (Manifest V3)
 │   ├── icons/                       # آیکون‌ها در ابعاد 16, 32, 48, 128
 │   ├── popup/                       # رابط کاربری پاپ‌آپ (HTML, CSS, JS)
@@ -88,11 +89,17 @@ idm-fast-downloader/
 │   ├── content.js                   # اسکریپت رهگیری کلیک‌ها و پنل شناور سلکت
 │   ├── content.css                  # استایل نوتیفیکیشن‌ها و مدال دانلود دسته‌ای
 │   └── manifest.json                # مانیفست اکستنشن (نسخه 1.8.16)
+├── extension-firefox/               # سورس بهینه‌شده ویژه موزیلا فایرفاکس
 ├── native-host/                     # پل ارتباطی بومی ویندوز
 │   ├── IdmBridge.cs                 # سورس C# پل ارتباطی بر بستر استاندارد Stdio
+│   ├── idm_bridge.exe               # باینری کامپایل‌شده پل بومی
 │   ├── com.idm.nativehost.chrome.json
 │   └── com.idm.nativehost.firefox.json
-├── install.bat                      # اسکریپت نصب و کامپایل خودکار با یک کلیک
+├── installer/                       # سورس‌های اینستالر حرفه‌ای
+│   ├── Setup.cs                     # سورس کامل C# نصب‌کننده گرافیکی و هوشمند
+│   ├── build.bat                    # بیلد آسان Setup.exe با کامپایلر پیش‌فرض ویندوز
+│   └── installer.iss                # اسکریپت ساخت فایل ستاپ تک‌فایلی با Inno Setup
+├── install.bat                      # اسکریپت خط‌فرمانی نصب جایگزین
 ├── install.ps1                      # اسکریپت پاورشل کامپایل و رجیستری
 ├── uninstall.bat                    # اسکریپت حذف تمیز پل ارتباطی از رجیستری
 ├── uninstall.ps1                    # اسکریپت پاورشل حذف رجیستری
@@ -102,29 +109,26 @@ idm-fast-downloader/
 
 ---
 
-### 🛠️ راهنمای نصب سریع و آسان
+### 🛠️ راهنمای نصب سریع و آسان (دو روش)
 
-نصب این افزونه در ۲ مرحله ساده و کمتر از ۱ دقیقه انجام می‌شه:
+#### 🌟 روش اول: نصب خودکار با برنامه گرافیکی `Setup.exe` (پیشنهادی - فقط با ۱ کلیک)
 
-#### مرحله ۱: ثبت پل ارتباطی در ویندوز (تنها یک کلیک)
-چون مرورگرها به دلایل امنیتی اجازه اجرای مستقیم فایل‌های `.exe` رو ندارند، باید پل ارتباطی Native Messaging ثبت بشه:
-1. فایل زیپ سورس رو دانلود کنید یا با گیت کلون بگیرید.
-2. روی فایل **`install.bat`** راست‌کلیک کرده و آن را اجرا کنید.
-3. این اسکریپت پل C# رو با کامپایلر استاندارد و پیش‌فرض خود ویندوز (`csc.exe`) کامپایل می‌کنه و کلیدهای ریجستری رو در چند ثانیه ثبت می‌کنه.
+1. روی فایل **`Setup.exe`** دابل‌کلیک کنید تا پنجره مدرن نصب‌کننده (طراحی‌شده با فونت زیبای **وزیرمتن**) باز شود.
+2. برنامه به طور خودکار مرورگرهای نصب‌شده روی سیستم شما (Chrome, Edge, Brave, Firefox, Opera, Vivaldi) و همچنین وضعیت نرم‌افزار IDM را تشخیص می‌دهد.
+3. تنها کافیست روی دکمه بزرگ **«⚡ نصب و فعال‌سازی فوری (فقط با ۱ کلیک)»** کلیک کنید:
+   - فایل‌ها در یک مسیر امن و دائمی (`%LOCALAPPDATA%\IDMFastDownloader`) نصب می‌شوند تا حتی با پاک شدن پوشه دانلودها، ارتباط قطع نشود.
+   - پل ارتباطی بومی، فایل‌های مانیفست و کلیدهای ریجستری به طور خودکار برای تمام مرورگرهای شناسایی‌شده در کمتر از ۲ ثانیه ثبت می‌شوند.
+4. **تست و بارگذاری سریع:**
+   - صفحه تبریک و دکمه‌های بازگشایی مرورگرها ظاهر می‌شوند؛ با کلیک روی مرورگر مدنظر وارد صفحه افزونه‌ها شده و با فشردن کلیدهای **Ctrl + V** افزونه فوراً فعال می‌شود. 🎉
 
-#### مرحله ۲: بارگذاری افزونه در مرورگر
-- **در مرورگرهای کرومیوم (Chrome, Edge, Brave, Opera):**
-  1. در آدرس‌بار عبارت `chrome://extensions` (یا `edge://extensions` یا `brave://extensions`) رو تایپ کنید و Enter بزنید.
-  2. در بالای صفحه گزینه **Developer mode** (حالت توسعه‌دهنده) رو روشن کنید.
-  3. روی دکمه **Load unpacked** کلیک کنید.
-  4. پوشه **`extension`** داخل همین پروژه رو انتخاب کنید.
-  5. تبریک! افزونه نصب شد و آیکون اون بالای مرورگر ظاهر می‌شه. 🎉
+> ⚙️ **نکته:** چنانچه مایل به تنظیمات دستی یا حذف نصب باشید، گزینه «تنظیمات سفارشی» در پایین پنجره در دسترس است.
 
-- **در موزیلا فایرفاکس (Firefox):**
-  1. وارد آدرس `about:debugging#/runtime/this-firefox` بشید.
-  2. روی دکمه **Load Temporary Add-on...** کلیک کنید.
-  3. فایل `manifest.json` درون پوشه **`extension-firefox`** (یا فایل فشرده `idm-fast-downloader-firefox.zip`) رو انتخاب کنید.
-  > 💡 **نکته:** اگر می‌خواهید مستقیماً پوشه اصلی `extension` را لود کنید، کافیست در صفحه تنظیمات پیشرفته فایرفاکس (`about:config`) عبارت `extensions.backgroundServiceWorker.enabled` را جستجو کرده و روی `true` قرار دهید.
+---
+
+#### 💻 روش دوم: استفاده از اسکریپت‌های خط فرمانی (`install.bat`)
+چنانچه مایل به استفاده از اسکریپت هستید:
+1. روی فایل **`install.bat`** راست‌کلیک کرده و آن را اجرا کنید.
+2. به صفحه افزونه‌های مرورگر خود (`chrome://extensions` یا `edge://extensions` یا `about:debugging#/runtime/this-firefox`) رفته و پوشه `extension` یا `extension-firefox` را لود کنید.
 
 ---
 
@@ -184,25 +188,26 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ---
 
-### 🛠️ Quick Installation
+### 🛠️ Quick Installation (Two Methods)
 
-#### Step 1: Register Native Host (One Click)
-Because browsers cannot launch Windows executables directly due to sandbox security policies, run the native messaging installer:
-1. Clone or download this repository.
-2. Double-click **`install.bat`**.
-3. It will automatically compile `native-host/IdmBridge.cs` using Windows' built-in .NET compiler (`csc.exe`) and set up the required registry keys.
+#### 🌟 Method 1: Automated GUI Installer `Setup.exe` (Recommended - Zero Hassle)
+1. Double-click **`Setup.exe`** to open the modern graphical assistant.
+2. The installer automatically detects your installed browsers (Chrome, Edge, Brave, Firefox, Opera, Vivaldi) and IDM installation status.
+3. Click **"🚀 نصب، ثبت ریجستری و راه‌اندازی پل ارتباطی"**:
+   - Files are safely deployed to a permanent user directory (`%LOCALAPPDATA%\IDMFastDownloader`) so deleting temporary download folders won't break the integration.
+   - Registers native host and manifests across all selected browsers instantly.
+4. **One-Click Browser Activation:**
+   - In the launcher panel, click your browser's button (e.g. **"🚀 بارگذاری در Google Chrome"**).
+   - Your browser opens directly to the extensions page and **the extension folder path is automatically copied to your clipboard!**
+   - Toggle **Developer mode** on, click **Load unpacked**, press **Ctrl + V** and hit **Enter**. Done! 🎉
 
-#### Step 2: Load Extension in Browser
-- **For Chromium Browsers (Chrome, Edge, Brave, Opera):**
-  1. Navigate to `chrome://extensions` (or `edge://extensions`, `brave://extensions`).
-  2. Toggle **Developer mode** on (top-right corner).
-  3. Click **Load unpacked**.
-  4. Select the **`extension`** folder from this repository.
-- **For Mozilla Firefox:**
-  1. Navigate to `about:debugging#/runtime/this-firefox`.
-  2. Click **Load Temporary Add-on...**.
-  3. Select the `manifest.json` file inside the **`extension-firefox`** folder (or select `idm-fast-downloader-firefox.zip`).
-  > 💡 **Tip:** To load the main `extension` folder directly in Firefox, navigate to `about:config` and set `extensions.backgroundServiceWorker.enabled` to `true`.
+---
+
+#### 💻 Method 2: Command-Line Script (`install.bat`)
+If you prefer running command-line scripts:
+1. Double-click **`install.bat`**.
+2. It compiles `native-host/IdmBridge.cs` using Windows' built-in .NET compiler (`csc.exe`) and sets up the registry keys.
+3. Manually navigate to your browser extensions page and load the `extension` or `extension-firefox` folder.
 
 </div>
 

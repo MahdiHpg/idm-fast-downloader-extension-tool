@@ -1,7 +1,9 @@
 # Windows build and binary outputs
 native-host/idm_bridge.exe
 *.exe
+!Setup.exe
 *.zip
+!idm-fast-downloader-firefox.zip
 
 # OS generated files
 Thumbs.db
