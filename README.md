@@ -52,8 +52,10 @@
 
 ---
 
-### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۱۰)
+### ✨ ویژگی‌های کلیدی (نسخه ۱.۸.۱۶)
 
+- **⚡ مدیریت هوشمند تب‌های پس‌زمینه و مصرف بهینه CPU (Lazy Tab Scanning):** هنگام باز کردن تب‌های پرلینک در پس‌زمینه، افزونه هیچ پردازش سنگینی انجام نمی‌دهد و سیستم را کاملاً سبک نگه می‌دارد؛ فرآیند اسکن دقیقاً در لحظه فوکوس و ورود کاربر به تب فعال می‌شود.
+- **📝 فیلتر اختصاصی «فقط دانلود زیرنویس فارسی» (Persian Subtitles Only):** امکان تفکیک و انتخاب انحصاری تمام زیرنویس‌های فارسی قسمت‌های سریال و فیلم با یک کلیک (پنهان‌سازی هوشمند ویدیوها و آماده‌سازی مستقیم زیرنویس‌ها برای صف IDM یا خروجی متنی).
 - **⚡ رهگیری فوری کلیک (Click Interception):** با کلیک چپ روی هر فایل، مرورگر بدون معطلی دیالوگ تایید و ذخیره رسمی IDM رو باز می‌کنه.
 - **⚡ دانلود مستقیم استریم‌های HLS چندقطعه‌ای به پوشه دلخواه:** پشتیبانی هوشمند از پرتال‌های استریم آنلاین با استریم‌های HLS (.m3u8). قابلیت انتخاب پوشه مقصد در ویندوز (Folder Picker)، دانلود چندنخی سگمنت‌ها توسط پل بومی و ادغام خودکار در یک فایل کامل در پوشه انتخابی کاربر همراه با نمایش زنده درصد پیشرفت و نام فایل.
 - **🎬 استخراج هوشمند فیلم‌ها و سریال‌ها (Movie & Series Batch Extractor):** در تمامی سایت‌های مرجع دانلود فیلم و سریال و پلتفرم‌های استریم (چه فیلم‌های سینمایی تک‌قسمتی و چه سریال‌های چندفصله)، دکمه شناور هوشمند IDM ظاهر می‌شود تا بدون نیاز به جستجوی دستی بین لینک‌های شلوغ، با یک کلیک:
@@ -162,6 +164,8 @@ Tired of waiting for official fixes, I dedicated substantial time and careful te
 
 ### ✨ Key Features (v1.8.16)
 
+- **⚡ Zero Background Tab Overhead (Lazy Tab Scanning):** When opening multiple download pages in background tabs, the extension remains completely idle to prevent browser freezing and CPU spikes. Heavy scanning begins only when you actually switch to and view the tab.
+- **📝 Persian Subtitles Only Filter:** Instantly filter and select only Persian subtitles with a single click in the batch download dialog (automatically hides video streams and queues subtitles directly for IDM or text export).
 - **⚡ Instant Download Hand-off:** Left-click on any supported file link to bypass the browser's slow downloader and trigger IDM's native save dialog immediately.
 - **⚡ Direct HLS Stream Downloader & Custom Folder Picker:** Full support for multi-segment HLS streams (.m3u8) on streaming portals. Pick any destination folder on your PC with a native Windows folder dialog, download segments in parallel with multi-threading, and automatically merge them into a single high-quality video file directly in your target folder.
 - **✖️ In-Page Floating Widget Dismiss Button:** Dedicated close button with a cross icon (`✕`) on both the floating movie/serial extractor badge and the text selection batch toolbar, allowing instant dismissal without interference.
