@@ -719,6 +719,75 @@
   cursor: pointer;
 }
 
+/* Persian Subtitles Exclusive Filter Item */
+.idm-filter-only-fa-sub-item {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.idm-filter-only-fa-sub-item:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #f59e0b;
+}
+
+.idm-filter-only-fa-sub-item input[type="checkbox"] {
+  accent-color: #f59e0b;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.idm-only-sub-pill {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.idm-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.idm-toolbar-btn-only-fa {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.idm-toolbar-btn-only-fa:hover,
+.idm-toolbar-btn-only-fa.active {
+  background: #f59e0b;
+  color: #0f172a;
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.idm-filter-disabled {
+  opacity: 0.4 !important;
+  pointer-events: none !important;
+  filter: grayscale(0.6);
+  transition: opacity 0.2s ease;
+}
+
 /* Badges for Serial Items (Quality and Subtitle) */
 .idm-item-badge {
   display: inline-block;

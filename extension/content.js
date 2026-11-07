@@ -72,6 +72,9 @@
       serial_filter_sub_fa: 'زیرنویس فارسی (FA)',
       serial_filter_sub_en: 'زیرنویس انگلیسی (EN)',
       serial_filter_sub_other: 'سایر زیرنویس‌ها',
+      serial_filter_only_fa_sub: 'فقط زیرنویس فارسی',
+      serial_filter_only_fa_sub_tip: 'نمایش و دانلود انحصاری زیرنویس‌های فارسی (حذف فایل‌های ویدیویی)',
+      modal_subtitle_only_fa: (count) => `${count} زیرنویس فارسی آماده دانلود یافت شد`,
       serial_all_seasons: 'همه فصل‌ها',
       serial_season_prefix: 'فصل',
       serial_quality_all: 'تمام کیفیت‌ها',
@@ -144,6 +147,9 @@
       serial_filter_sub_fa: 'Persian Subtitles (FA)',
       serial_filter_sub_en: 'English Subtitles (EN)',
       serial_filter_sub_other: 'Other Subtitles',
+      serial_filter_only_fa_sub: 'Persian Subtitles Only',
+      serial_filter_only_fa_sub_tip: 'Display and download only Persian subtitles (hide video files)',
+      modal_subtitle_only_fa: (count) => `${count} Persian subtitles ready for download`,
       serial_all_seasons: 'All Seasons',
       serial_season_prefix: 'Season',
       serial_quality_all: 'All Qualities',
@@ -735,6 +741,31 @@
       return;
     }
 
+    // Auto construct filterOptions for generic or user-selected links if subtitles are detected
+    if (!filterOptions) {
+      const subRegex = /\.(srt|vtt|sub)($|\?)/i;
+      const hasAnySub = items.some((it) => it.isSub || subRegex.test(it.url || ''));
+      if (hasAnySub) {
+        items.forEach((it) => {
+          if (!it.isSub && subRegex.test(it.url || '')) {
+            it.isSub = true;
+            const checkStr = ((it.title || '') + ' ' + (it.url || '')).toLowerCase();
+            if (/farsi|persian|\bfa\b|sub[-_.]?fa|fa[-_]ir|فارسی/i.test(checkStr)) {
+              it.subLang = 'fa';
+            } else if (/english|\ben\b|\beng\b|sub[-_.]?en|انگلیسی/i.test(checkStr)) {
+              it.subLang = 'en';
+            } else {
+              it.subLang = 'other';
+            }
+          }
+        });
+        filterOptions = {
+          allItems: items,
+          episodeCount: items.length
+        };
+      }
+    }
+
     const t = getT();
     const isRtl = cachedSettings.language !== 'en';
 
@@ -826,6 +857,10 @@
             <label class="idm-filter-check-item">
               <input type="checkbox" id="idm-filter-sub-fa" ${defFaChecked ? 'checked' : ''} />
               <span>${t.serial_filter_sub_fa}</span>
+            </label>
+            <label class="idm-filter-check-item idm-filter-only-fa-sub-item" title="${t.serial_filter_only_fa_sub_tip}">
+              <input type="checkbox" id="idm-filter-only-fa-sub" />
+              <span class="idm-only-sub-pill">📝 ${t.serial_filter_only_fa_sub}</span>
             </label>
           `;
         }
@@ -1050,10 +1085,17 @@
         ` : ''}
 
         <div class="idm-modal-toolbar">
-          <label class="idm-checkbox-label">
-            <input type="checkbox" id="idm-select-all" checked />
-            <span>${t.modal_select_all}</span>
-          </label>
+          <div class="idm-toolbar-actions">
+            <label class="idm-checkbox-label">
+              <input type="checkbox" id="idm-select-all" checked />
+              <span>${t.modal_select_all}</span>
+            </label>
+            ${filterOptions && filterOptions.allItems && filterOptions.allItems.some((it) => it.isSub && it.subLang === 'fa') ? `
+            <button type="button" class="idm-toolbar-btn-only-fa" id="idm-btn-only-fa-sub" title="${t.serial_filter_only_fa_sub_tip}">
+              <span>📝 ${t.serial_filter_only_fa_sub}</span>
+            </button>
+            ` : ''}
+          </div>
           <span class="idm-modal-count-badge" id="idm-selected-badge">${t.modal_count(currentItems.length, currentItems.length)}</span>
         </div>
 
@@ -1342,8 +1384,38 @@
       const subFaCheck = overlay.querySelector('#idm-filter-sub-fa');
       const subEnCheck = overlay.querySelector('#idm-filter-sub-en');
       const subOtherCheck = overlay.querySelector('#idm-filter-sub-other');
+      const onlyFaSubCheck = overlay.querySelector('#idm-filter-only-fa-sub');
+      const toolbarOnlyFaBtn = overlay.querySelector('#idm-btn-only-fa-sub');
 
       const applyFilters = () => {
+        const isOnlyFaSub = Boolean(onlyFaSubCheck && onlyFaSubCheck.checked);
+
+        if (toolbarOnlyFaBtn) {
+          toolbarOnlyFaBtn.classList.toggle('active', isOnlyFaSub);
+        }
+
+        // Disable/enable video-specific filters while in "Only Persian Subtitles" mode
+        if (qualitySelect) {
+          qualitySelect.disabled = isOnlyFaSub;
+          const group = qualitySelect.closest('.idm-filter-group');
+          if (group) group.classList.toggle('idm-filter-disabled', isOnlyFaSub);
+        }
+        if (audioSelect) {
+          audioSelect.disabled = isOnlyFaSub;
+          const group = audioSelect.closest('.idm-filter-group');
+          if (group) group.classList.toggle('idm-filter-disabled', isOnlyFaSub);
+        }
+        if (subEnCheck) {
+          subEnCheck.disabled = isOnlyFaSub;
+          const group = subEnCheck.closest('.idm-filter-check-item');
+          if (group) group.classList.toggle('idm-filter-disabled', isOnlyFaSub);
+        }
+        if (subOtherCheck) {
+          subOtherCheck.disabled = isOnlyFaSub;
+          const group = subOtherCheck.closest('.idm-filter-check-item');
+          if (group) group.classList.toggle('idm-filter-disabled', isOnlyFaSub);
+        }
+
         const selSeason = seasonSelect ? seasonSelect.value : 'all';
         const selQuality = qualitySelect ? qualitySelect.value : 'all';
         const selAudio = audioSelect ? audioSelect.value : 'all';
@@ -1352,6 +1424,17 @@
         const includeSubOther = subOtherCheck ? subOtherCheck.checked : false;
 
         const filtered = filterOptions.allItems.filter((item) => {
+          if (isOnlyFaSub) {
+            // Strictly include only Persian subtitles
+            if (!item.isSub || item.subLang !== 'fa') {
+              return false;
+            }
+            if (selSeason !== 'all' && String(item.seasonId) !== String(selSeason)) {
+              return false;
+            }
+            return true;
+          }
+
           if (selSeason !== 'all' && String(item.seasonId) !== String(selSeason)) {
             return false;
           }
@@ -1379,9 +1462,13 @@
 
         const subElem = overlay.querySelector('#idm-modal-sub');
         if (subElem) {
-          subElem.textContent = isMovie
-            ? t.movie_modal_subtitle(filtered.length)
-            : t.serial_modal_subtitle(filterOptions.episodeCount || filtered.length, filtered.length);
+          if (isOnlyFaSub) {
+            subElem.textContent = t.modal_subtitle_only_fa(filtered.length);
+          } else {
+            subElem.textContent = isMovie
+              ? t.movie_modal_subtitle(filtered.length)
+              : t.serial_modal_subtitle(filterOptions.episodeCount || filtered.length, filtered.length);
+          }
         }
       };
 
@@ -1391,6 +1478,17 @@
       if (subFaCheck) subFaCheck.addEventListener('change', applyFilters);
       if (subEnCheck) subEnCheck.addEventListener('change', applyFilters);
       if (subOtherCheck) subOtherCheck.addEventListener('change', applyFilters);
+      if (onlyFaSubCheck) onlyFaSubCheck.addEventListener('change', applyFilters);
+      if (toolbarOnlyFaBtn) {
+        toolbarOnlyFaBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (onlyFaSubCheck) {
+            onlyFaSubCheck.checked = !onlyFaSubCheck.checked;
+          }
+          applyFilters();
+        });
+      }
     }
 
     const closeModal = () => {
@@ -1598,9 +1696,16 @@
     }
   };
 
+  let checkUrlTimer = null;
+  const debouncedCheckUrlChange = () => {
+    if (document.hidden || document.visibilityState === 'hidden') return;
+    if (checkUrlTimer) clearTimeout(checkUrlTimer);
+    checkUrlTimer = setTimeout(checkUrlChange, 350);
+  };
+
   window.addEventListener('popstate', checkUrlChange);
   try {
-    const routeObserver = new MutationObserver(checkUrlChange);
+    const routeObserver = new MutationObserver(debouncedCheckUrlChange);
     const targetRoot = document.body || document.documentElement;
     if (targetRoot) {
       routeObserver.observe(targetRoot, { childList: true, subtree: true });
@@ -1812,23 +1917,32 @@
 
     const candidateItems = [];
     const seenUrls = new Set();
+    const maxItemsLimit = 1500;
 
-    anchors.forEach((a) => {
+    for (let i = 0; i < anchors.length && candidateItems.length < maxItemsLimit; i++) {
+      const a = anchors[i];
       const rawHref = a.getAttribute('href') || a.getAttribute('data-url') || a.getAttribute('data-href') || a.getAttribute('data-download-url') || a.getAttribute('data-file-url');
-      if (!rawHref) return;
+      if (!rawHref) continue;
+
+      // Fast pre-filter: check raw string before running expensive URL parsing or DOM layout reads
+      const dlAttr = a.getAttribute('download') || '';
+      const isCandidateMedia = mediaRegex.test(rawHref) || subRegex.test(rawHref) || mediaRegex.test(dlAttr) || subRegex.test(dlAttr);
+      if (!isCandidateMedia) {
+        continue;
+      }
 
       let fullUrl = '';
       try {
         fullUrl = new URL(rawHref, window.location.href).href;
       } catch {
-        return;
+        continue;
       }
 
-      if (seenUrls.has(fullUrl)) return;
+      if (seenUrls.has(fullUrl)) continue;
 
       const isVideo = mediaRegex.test(fullUrl);
       const isSub = subRegex.test(fullUrl);
-      if (!isVideo && !isSub) return;
+      if (!isVideo && !isSub) continue;
 
       // Extract filename from URL path
       let filename = '';
@@ -1865,7 +1979,9 @@
       }
 
       // Dubbed detection
-      const checkStr = [filename, fullUrl, a.textContent, a.title].filter(Boolean).join(' ');
+      const aText = (a.textContent || '').trim();
+      const aTitle = (a.getAttribute('title') || a.getAttribute('aria-label') || '').trim();
+      const checkStr = [filename, fullUrl, aText, aTitle].filter(Boolean).join(' ');
       const isDubbedRegex = /(?:^|[^a-zA-Z0-9])(?:dub|dubbed|duble|dooble|farsi[._-]?dub|fa[._-]?dub|persian[._-]?dub)(?:$|[^a-zA-Z0-9])|دوبله/i;
       const isDubbed = isDubbedRegex.test(checkStr);
 
@@ -1873,11 +1989,16 @@
       let subLang = null;
       if (isSub) {
         subLang = 'other';
-        const checkStr = (filename + ' ' + fullUrl + ' ' + (a.textContent || '')).toLowerCase();
-        if (/farsi|persian|fa\b|sub_fa|فارسی/i.test(checkStr)) {
+        const parentSnippet = a.parentElement ? ((a.parentElement.className || '') + ' ' + (a.parentElement.textContent || '').slice(0, 150)) : '';
+        const subCheckStr = (filename + ' ' + fullUrl + ' ' + aText + ' ' + aTitle + ' ' + parentSnippet).toLowerCase();
+
+        if (/farsi|persian|\bfa\b|sub[-_.]?fa|fa[-_]ir|فارسی/i.test(subCheckStr)) {
           subLang = 'fa';
-        } else if (/english|en\b|eng\b|sub_en|انگلیسی/i.test(checkStr)) {
+        } else if (/english|\ben\b|\beng\b|sub[-_.]?en|انگلیسی/i.test(subCheckStr)) {
           subLang = 'en';
+        } else if (/[\u0600-\u06FF]/.test(subCheckStr) && !/english|\ben\b|\beng\b/i.test(subCheckStr)) {
+          // Persian characters present in subtitle link context and not marked English -> Persian subtitle
+          subLang = 'fa';
         }
       }
 
@@ -1897,7 +2018,7 @@
         url: fullUrl,
         filename: filename,
         title: filename,
-        epTitle: (a.textContent || a.title || '').trim() || filename,
+        epTitle: aText || aTitle || filename,
         seasonId: seasonId,
         episodeNum: epNum,
         quality: quality,
@@ -1908,7 +2029,7 @@
       });
 
       seenUrls.add(fullUrl);
-    });
+    }
 
     // Build distinct seasons
     const seasonMap = new Map();
@@ -1946,7 +2067,16 @@
   };
 
   const initUniversalMediaScanner = () => {
+    let pendingScanWhileHidden = false;
+
     const handleScan = () => {
+      // If tab is currently in background/hidden, defer scanning until tab is viewed!
+      if (document.hidden || document.visibilityState === 'hidden') {
+        pendingScanWhileHidden = true;
+        return;
+      }
+      pendingScanWhileHidden = false;
+
       const scanResult = scanDocumentForEpisodes();
 
       const hasEpisodePattern = scanResult.items.some((it) => it.episodeNum !== null);
@@ -1984,17 +2114,35 @@
       }, buttonLabel);
     };
 
-    // Scan immediately
-    handleScan();
+    // Scan immediately if visible, otherwise flag as pending
+    if (!document.hidden && document.visibilityState === 'visible') {
+      handleScan();
+      setTimeout(handleScan, 1500);
+    } else {
+      pendingScanWhileHidden = true;
+    }
 
-    // Re-check after 1.5s in case page content / tabs lazy-loaded
-    setTimeout(handleScan, 1500);
+    // Trigger deferred scan once user switches to this tab
+    const onVisibilityChange = () => {
+      if (!document.hidden && document.visibilityState === 'visible') {
+        if (pendingScanWhileHidden) {
+          pendingScanWhileHidden = false;
+          handleScan();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange, { passive: true });
+    window.addEventListener('focus', onVisibilityChange, { passive: true });
 
     // Also observe DOM additions (with debounce) for client-rendered SPAs/tabs
     let domTimer = null;
     const observer = new MutationObserver(() => {
+      if (document.hidden || document.visibilityState === 'hidden') {
+        pendingScanWhileHidden = true;
+        return;
+      }
       if (domTimer) clearTimeout(domTimer);
-      domTimer = setTimeout(handleScan, 800);
+      domTimer = setTimeout(handleScan, 1000);
     });
 
     if (document.body) {
@@ -2579,6 +2727,7 @@
 
     const attachFloatBarToVideo = (video) => {
       if (!cachedSettings.enabled || cachedSettings.floatingVideoBar === false || isCurrentSiteExcluded()) return;
+      if (document.hidden || document.visibilityState === 'hidden') return;
       if (!video || video.dataset.idmFloatDismissed === 'true') return;
       if (video.offsetWidth > 0 && video.offsetWidth < 160) return;
       if (video.offsetHeight > 0 && video.offsetHeight < 100) return;
@@ -2813,8 +2962,9 @@
     // Also observe DOM mutations with debounce to catch SPA route changes in React/Next.js/Vue
     let mutTimer = null;
     const observer = new MutationObserver(() => {
+      if (document.hidden || document.visibilityState === 'hidden') return;
       if (mutTimer) clearTimeout(mutTimer);
-      mutTimer = setTimeout(onUrlCheck, 250);
+      mutTimer = setTimeout(onUrlCheck, 350);
     });
 
     const target = document.body || document.documentElement;
@@ -2834,7 +2984,27 @@
 
   // Main Extractor Initializer
   const initMediaBatchExtractor = () => {
+    // 1. Guard against iframes: ONLY run batch extraction & sticky button in top-level window
+    if (window !== window.top) {
+      return;
+    }
+
     if (isCurrentSiteExcluded()) {
+      return;
+    }
+
+    // 2. Tab Visibility Check: If tab was opened in the background, DO NOT run link extraction or scanners!
+    // Wait until user actually switches to or views this tab.
+    if (document.hidden || document.visibilityState === 'hidden') {
+      const onTabBecameVisible = () => {
+        if (!document.hidden && document.visibilityState === 'visible') {
+          document.removeEventListener('visibilitychange', onTabBecameVisible);
+          window.removeEventListener('focus', onTabBecameVisible);
+          initMediaBatchExtractor();
+        }
+      };
+      document.addEventListener('visibilitychange', onTabBecameVisible, { passive: true });
+      window.addEventListener('focus', onTabBecameVisible, { passive: true });
       return;
     }
 
